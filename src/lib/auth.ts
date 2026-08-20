@@ -86,7 +86,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     // Injecte l'id MongoDB dans le JWT
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account }) {
       // Connexion initiale — on stocke l'id
       if (user?.id) {
         token.id = user.id;
