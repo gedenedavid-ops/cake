@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FAF8F5;
+  --color-cream-dark: #F5F3EF;
+  --color-ochre: #F4A236;
+  --color-ochre-dark: #EAA240;
+  --color-ochre-light: #FDF0DC;
+  --color-charcoal: #1A1A1A;
+  --color-charcoal-soft: #2C2C2C;
+  --color-muted: #9B9590;
+  --color-muted-light: #C8C4BE;
+  --color-border: #E8E4DF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F0EDE8;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --radius-card: 1.25rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #FAF8F5;
+  color: #1A1A1A;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #C8C4BE;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9B9590;
+}
+
+/* Selection */
+::selection {
+  background: #FDF0DC;
+  color: #1A1A1A;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid #F4A236;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Textarea & input reset */
+textarea, input {
+  outline: none;
+  font-family: inherit;
+}
+
+/* Prose in notes */
+.note-content {
+  line-height: 1.75;
+  font-size: 0.9375rem;
+}
+
+/* Shimmer animation for loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #F0EDE8 25%, #E8E4DF 50%, #F0EDE8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Graph tooltip */
+.graph-tooltip {
+  position: absolute;
+  background: #1A1A1A;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 100;
+}

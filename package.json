@@ -1,0 +1,45 @@
+{
+  "name": "cake-1",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.3",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/d3": "^7.4.3",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^13.1.0",
+    "lucide-react": "^1.33.0",
+    "mongoose": "^9.9.3",
+    "next": "16.3.1",
+    "next-auth": "^5.0.0-beta.32",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-force-graph-2d": "^1.29.1",
+    "tailwind-merge": "^3.6.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
