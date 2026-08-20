@@ -16,6 +16,7 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@types/bcryptjs": "^2.4.6",
     "@types/d3": "^7.4.3",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
