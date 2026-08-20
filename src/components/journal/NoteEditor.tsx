@@ -26,7 +26,7 @@ export function NoteEditor() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [subject, setSubject] = useState<Subject>('Other');
+  const [subject, setSubject] = useState<Subject>('Autre');
   const [mood, setMood] = useState<Mood | undefined>(undefined);
   const [tags, setTags] = useState<NoteTag[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -52,7 +52,7 @@ export function NoteEditor() {
       setIsPinned(existingNote.isPinned);
       setColor(existingNote.color ?? 'default');
     } else {
-      setTitle(''); setContent(''); setSubject('Other');
+      setTitle(''); setContent(''); setSubject('Autre');
       setMood(undefined); setTags([]); setIsLocked(false);
       setIsPinned(false); setColor('default');
     }

@@ -1,19 +1,20 @@
 // ─── Core Data Types ──────────────────────────────────────────────────────────
 
 export type Subject =
-  | 'Mathematics'
-  | 'Physics'
-  | 'Chemistry'
-  | 'Biology'
-  | 'History'
-  | 'Geography'
-  | 'Literature'
-  | 'Computer Science'
-  | 'Philosophy'
-  | 'Languages'
-  | 'Economics'
-  | 'Art'
-  | 'Other';
+  | 'Français'
+  | 'Anglais'
+  | 'Histoire-Géographie'
+  | 'Philosophie'
+  | 'Espagnol'
+  | 'Allemand'
+  | 'Mathématiques'
+  | 'Physique-Chimie'
+  | 'SVT'
+  | 'EDHC'
+  | 'EPS'
+  | 'Arts Plastiques'
+  | 'Éducation Musicale'
+  | 'Autre';
 
 export type Mood = 'focused' | 'confused' | 'tired' | 'motivated' | 'anxious' | 'calm';
 
