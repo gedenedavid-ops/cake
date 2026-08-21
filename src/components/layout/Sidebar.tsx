@@ -105,7 +105,8 @@ export function Sidebar() {
               aria-label={label}
               title={label}
             >
-              <Icon size={18} className="flex-shrink-0" />
+              {/* Icône visible uniquement quand la sidebar est réduite */}
+              {sidebarCollapsed && <Icon size={18} className="flex-shrink-0" />}
               {!sidebarCollapsed && (
                 <span className="whitespace-nowrap">{label}</span>
               )}
