@@ -18,7 +18,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   cached = mongoose.connect(MONGODB_URI, {
     bufferCommands: false,
-    dbName: 'cake',
+    dbName: 'binlinpad',
   });
 
   global._mongooseConn = cached;

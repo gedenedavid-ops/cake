@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!apiKey) {
       // Demo mode: return a helpful placeholder response
       return NextResponse.json({
-        message: `Hi! I'm Cake, your personal study tutor 🎓\n\nI noticed you asked: "${query}"\n\nTo enable AI responses, add your **DEEPSEEK_API_KEY** to your .env.local file. Once configured, I'll be able to:\n\n• Answer questions about your notes\n• Create custom quizzes\n• Explain complex concepts simply\n• Help you build revision plans\n\nYou've got this! 💪`,
+        message: `Hi! I'm BinlinPad, your personal study tutor 🎓\n\nI noticed you asked: "${query}"\n\nTo enable AI responses, add your **DEEPSEEK_API_KEY** to your .env.local file. Once configured, I'll be able to:\n\n• Answer questions about your notes\n• Create custom quizzes\n• Explain complex concepts simply\n• Help you build revision plans\n\nYou've got this! 💪`,
         sources: [],
       });
     }

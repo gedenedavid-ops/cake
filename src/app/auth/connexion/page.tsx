@@ -95,7 +95,7 @@ function AuthForm() {
           <div className="w-14 h-14 rounded-2xl bg-[#F4A236] flex items-center justify-center mb-3 shadow-lg shadow-[#F4A23630]">
             <Sparkles size={26} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-[#1A1A1A]">Cake</h1>
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">BinlinPad</h1>
           <p className="text-xs text-[#9B9590] mt-1">Ton compagnon d'études personnel</p>
         </motion.div>
 

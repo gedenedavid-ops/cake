@@ -244,7 +244,7 @@ export function ChatPanel() {
             <Sparkles size={17} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur Cake</h2>
+            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur BinlinPad</h2>
               <p className="text-[10px] text-[#9B9590]">
                 Propulsé par DeepSeek · {notes.length} note{notes.length > 1 ? 's' : ''} disponible{notes.length > 1 ? 's' : ''}
               </p>

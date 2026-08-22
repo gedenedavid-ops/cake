@@ -58,7 +58,7 @@ export function Sidebar() {
               transition={{ duration: 0.15 }}
               className="ml-3 font-semibold text-[#1A1A1A] text-lg whitespace-nowrap"
             >
-              Cake
+              BinlinPad
             </motion.span>
           )}
         </AnimatePresence>

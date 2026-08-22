@@ -96,7 +96,7 @@ type UISlice = {
 
 type AppStore = NotesSlice & ChatSlice & UISlice;
 
-const NOTES_KEY = 'cake_notes';
+const NOTES_KEY = 'binlinpad_notes';
 
 // ─── RAG helpers (fire-and-forget, never block the UI) ────────────────────────
 

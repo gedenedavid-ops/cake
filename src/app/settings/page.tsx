@@ -246,7 +246,7 @@ export default function SettingsPage() {
             <Settings size={22} className="text-[#F4A236]" />
             Paramètres
             </h1>
-            <p className="text-xs text-[#9B9590] mt-0.5">Personnalise ton expérience Cake</p>
+            <p className="text-xs text-[#9B9590] mt-0.5">Personnalise ton expérience BinlinPad</p>
         </div>
 
         {/* Tab bar */}
