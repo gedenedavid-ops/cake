@@ -297,7 +297,24 @@ export const useStore = create<AppStore>((set, get) => ({
         .map((m) => ({ role: m.role, content: m.content }));
 
       // ── Step 1: semantic search in Qdrant for relevant notes ──────────────
-      const ragResults: SearchResult[] = await searchSimilarNotes(content);
+      let ragResults: SearchResult[] = await searchSimilarNotes(content);
+
+      // ── Fallback : si le RAG n'est pas configuré, injecter les notes récentes
+      if (ragResults.length === 0) {
+        const recentNotes = [...get().notes]
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .slice(0, 5);
+        ragResults = recentNotes.map((n) => ({
+          id: n.id,
+          score: 1,
+          payload: {
+            noteId: n.id,
+            title: n.title,
+            content: n.content.slice(0, 500),
+            subject: n.subject,
+          },
+        }));
+      }
 
       // ── Step 2: call DeepSeek with retrieved context ──────────────────────
       const res = await fetch('/api/chat', {
