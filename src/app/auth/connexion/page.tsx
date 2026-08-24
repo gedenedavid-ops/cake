@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Loader2, Mail, Lock, User, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { UserType } from '@/types';
 
 // ─── Icônes SVG inline (pas de dépendance externe) ───────────────────────────
 
@@ -28,14 +29,15 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const callbackUrl  = searchParams.get('callbackUrl') ?? '/journal';
 
-  const [mode, setMode]       = useState<Mode>('connexion');
-  const [name, setName]       = useState('');
-  const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode]           = useState<Mode>('connexion');
+  const [name, setName]           = useState('');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [userType, setUserType]   = useState<UserType>('eleve');
+  const [showPwd, setShowPwd]     = useState(false);
+  const [loading, setLoading]     = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [error, setError]         = useState('');
 
   // ── Connexion OAuth Google ───────────────────────────────────────────────────
   const handleGoogle = async () => {
@@ -56,7 +58,7 @@ function AuthForm() {
         const res = await fetch('/api/auth/inscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name, email, password, userType }),
         });
         const data = await res.json();
         if (!res.ok) { setError(data.error); setLoading(false); return; }
@@ -148,26 +150,55 @@ function AuthForm() {
 
           {/* ── Formulaire email/mot de passe ── */}
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Nom — inscription seulement */}
+            {/* Nom + sélecteur profil — inscription seulement */}
             <AnimatePresence>
               {mode === 'inscription' && (
                 <motion.div
-                  key="name"
+                  key="inscription-fields"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="relative overflow-hidden"
+                  className="space-y-3 overflow-hidden"
                 >
-                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C8C4BE]" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ton prénom"
-                    required
-                    maxLength={80}
-                    className="w-full pl-10 pr-4 py-3 bg-[#F5F3EF] border border-transparent rounded-xl text-sm text-[#1A1A1A] placeholder-[#C8C4BE] focus:border-[#F4A236] focus:ring-2 focus:ring-[#F4A236]/20 transition-all focus:bg-white"
-                  />
+                  {/* Prénom */}
+                  <div className="relative">
+                    <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C8C4BE]" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ton prénom"
+                      required
+                      maxLength={80}
+                      className="w-full pl-10 pr-4 py-3 bg-[#F5F3EF] border border-transparent rounded-xl text-sm text-[#1A1A1A] placeholder-[#C8C4BE] focus:border-[#F4A236] focus:ring-2 focus:ring-[#F4A236]/20 transition-all focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Sélecteur élève / étudiant */}
+                  <div>
+                    <p className="text-xs font-medium text-[#9B9590] mb-2">Je suis…</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: 'eleve'    as UserType, label: '🎒 Élève',    sub: 'Collège · Lycée' },
+                        { value: 'etudiant' as UserType, label: '🎓 Étudiant', sub: 'Université · Supérieur' },
+                      ] as const).map(({ value, label, sub }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setUserType(value)}
+                          className={cn(
+                            'flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition-all',
+                            userType === value
+                              ? 'bg-[#FDF0DC] border-[#F4A236] text-[#1A1A1A]'
+                              : 'bg-[#F5F3EF] border-transparent text-[#9B9590] hover:border-[#F4A236]/50'
+                          )}
+                        >
+                          <span className="text-sm font-semibold">{label}</span>
+                          <span className="text-[10px] mt-0.5">{sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

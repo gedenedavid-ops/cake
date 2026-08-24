@@ -205,7 +205,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function ChatPanel() {
-  const { sessions, createSession, sendMessage, setActiveSession, isAILoading, notes } = useStore();
+  const { sessions, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
   const activeSession = useActiveSession();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
@@ -244,9 +244,17 @@ export function ChatPanel() {
             <Sparkles size={17} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur BinlinPad</h2>
-              <p className="text-[10px] text-[#9B9590]">
-                Propulsé par DeepSeek · {notes.length} note{notes.length > 1 ? 's' : ''} disponible{notes.length > 1 ? 's' : ''}
+            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur Cake</h2>
+              <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
+                <span className={cn(
+                  'px-1.5 py-0.5 rounded-full font-semibold text-[9px]',
+                  userType === 'etudiant'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-orange-100 text-orange-700'
+                )}>
+                  {userType === 'etudiant' ? '🎓 Étudiant' : '🎒 Élève'}
+                </span>
+                {notes.length} note{notes.length > 1 ? 's' : ''}
               </p>
           </div>
         </div>
@@ -282,19 +290,27 @@ export function ChatPanel() {
           >
             <div className="p-3 space-y-1 max-h-40 overflow-y-auto">
               {sessions.map((sess) => (
-                <button
-                  key={sess.id}
-                  onClick={() => { setActiveSession(sess.id); setShowSessions(false); }}
-                  className={cn(
-                    'w-full text-left px-3 py-2 rounded-xl text-xs transition-colors',
-                    activeSession?.id === sess.id
-                      ? 'bg-[#FDF0DC] text-[#F4A236]'
-                      : 'hover:bg-[#F5F3EF] text-[#1A1A1A]'
-                  )}
-                >
-                  <span className="font-medium truncate block">{sess.title || 'Nouvelle conversation'}</span>
-                  <span className="text-[10px] text-[#9B9590]">{sess.messages.length} message{sess.messages.length > 1 ? 's' : ''}</span>
-                </button>
+                <div key={sess.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setActiveSession(sess.id); setShowSessions(false); }}
+                    className={cn(
+                      'flex-1 text-left px-3 py-2 rounded-xl text-xs transition-colors',
+                      activeSession?.id === sess.id
+                        ? 'bg-[#FDF0DC] text-[#F4A236]'
+                        : 'hover:bg-[#F5F3EF] text-[#1A1A1A]'
+                    )}
+                  >
+                    <span className="font-medium truncate block">{sess.title || 'Nouvelle conversation'}</span>
+                    <span className="text-[10px] text-[#9B9590]">{sess.messages.length} message{sess.messages.length > 1 ? 's' : ''}</span>
+                  </button>
+                  <button
+                    onClick={() => deleteSession(sess.id)}
+                    className="p-1.5 rounded-lg text-[#C8C4BE] hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
+                    title="Supprimer"
+                  >
+                    <RotateCcw size={10} />
+                  </button>
+                </div>
               ))}
             </div>
           </motion.div>

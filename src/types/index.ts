@@ -126,6 +126,17 @@ export type Toast = {
   duration?: number;
 };
 
+// ─── User Profile Types ───────────────────────────────────────────────────────
+
+export type UserType = 'eleve' | 'etudiant';
+
+export type LearningProfile = {
+  weakSubjects: string[];
+  studiedTopics: string[];
+  totalSessions: number;
+  lastActiveAt?: Date;
+};
+
 // ─── API Types ────────────────────────────────────────────────────────────────
 
 export type EmbedRequest = {

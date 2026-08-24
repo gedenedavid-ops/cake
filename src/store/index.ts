@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useMemo } from 'react';
-import type { Note, NoteFormData, ChatMessage, ChatSession, NavRoute, Toast, Subject, Mood, SearchResult } from '@/types';
+import type { Note, NoteFormData, ChatMessage, ChatSession, NavRoute, Toast, Subject, Mood, SearchResult, UserType, LearningProfile } from '@/types';
 import {
   generateId,
   countWords,
@@ -37,9 +37,22 @@ type ChatSlice = {
   sessions: ChatSession[];
   activeSessionId: string | null;
   isAILoading: boolean;
+  sessionsLoaded: boolean;
   createSession: () => ChatSession;
   sendMessage: (content: string) => Promise<void>;
   setActiveSession: (id: string | null) => void;
+  loadSessions: () => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+};
+
+// ─── User Profile Slice ───────────────────────────────────────────────────────
+
+type UserProfileSlice = {
+  userType: UserType;
+  learningProfile: LearningProfile;
+  profileLoaded: boolean;
+  loadUserProfile: () => Promise<void>;
+  setUserType: (t: UserType) => Promise<void>;
 };
 
 // ─── Preferences Slice ────────────────────────────────────────────────────────
@@ -94,7 +107,7 @@ type UISlice = {
 
 // ─── Combined Store ───────────────────────────────────────────────────────────
 
-type AppStore = NotesSlice & ChatSlice & UISlice;
+type AppStore = NotesSlice & ChatSlice & UserProfileSlice & UISlice;
 
 const NOTES_KEY = 'binlinpad_notes';
 
@@ -245,21 +258,79 @@ export const useStore = create<AppStore>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   isAILoading: false,
+  sessionsLoaded: false,
+
+  // Charge les sessions depuis MongoDB (appelé au montage de la page Tutor)
+  loadSessions: async () => {
+    try {
+      const res = await fetch('/api/chat/sessions');
+      if (!res.ok) return;
+      const data = await res.json();
+      const sessions: ChatSession[] = (data.sessions ?? []).map((s: Record<string, unknown>) => ({
+        ...(s as ChatSession),
+        id: (s._id ?? s.id) as string,
+        createdAt: new Date(s.createdAt as string),
+        updatedAt: new Date(s.updatedAt as string),
+        messages: ((s.messages ?? []) as Record<string, unknown>[]).map((m) => ({
+          ...(m as ChatMessage),
+          timestamp: new Date(m.timestamp as string),
+        })),
+      }));
+      set({ sessions, sessionsLoaded: true, activeSessionId: sessions[0]?.id ?? null });
+    } catch {
+      set({ sessionsLoaded: true });
+    }
+  },
 
   createSession: () => {
     const session: ChatSession = {
       id: generateId(),
-      title: 'New Conversation',
+      title: 'Nouvelle conversation',
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id }));
+    // Persister en base (fire-and-forget)
+    fetch('/api/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: session.title, messages: [] }),
+    }).then(async (res) => {
+      if (!res.ok) return;
+      const data = await res.json();
+      const dbId = data.session?._id ?? data.session?.id;
+      if (dbId && dbId !== session.id) {
+        // Remplacer l'id temporaire par l'id MongoDB
+        set((s) => ({
+          sessions: s.sessions.map((se) =>
+            se.id === session.id ? { ...se, id: dbId } : se
+          ),
+          activeSessionId: s.activeSessionId === session.id ? dbId : s.activeSessionId,
+        }));
+      }
+    }).catch(() => {/* silencieux */});
     return session;
   },
 
+  deleteSession: async (id: string) => {
+    set((s) => ({
+      sessions: s.sessions.filter((se) => se.id !== id),
+      activeSessionId: s.activeSessionId === id
+        ? (s.sessions.find((se) => se.id !== id)?.id ?? null)
+        : s.activeSessionId,
+    }));
+    try {
+      await fetch('/api/chat/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: id }),
+      });
+    } catch {/* silencieux */}
+  },
+
   sendMessage: async (content: string) => {
-    const { sessions, activeSessionId } = get();
+    const { activeSessionId } = get();
     let sessionId = activeSessionId;
 
     if (!sessionId) {
@@ -299,37 +370,65 @@ export const useStore = create<AppStore>((set, get) => ({
       // ── Step 1: semantic search in Qdrant for relevant notes ──────────────
       let ragResults: SearchResult[] = await searchSimilarNotes(content);
 
-      // ── Fallback : si le RAG n'est pas configuré, injecter les notes récentes
-      if (ragResults.length === 0) {
-        const recentNotes = [...get().notes]
-          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-          .slice(0, 5);
-        ragResults = recentNotes.map((n) => ({
-          id: n.id,
-          score: 1,
-          payload: {
-            noteId: n.id,
-            title: n.title,
-            content: n.content.slice(0, 500),
-            subject: n.subject,
-          },
-        }));
+      // ── Fallback : scoring local par pertinence si RAG non configuré ──────
+      if (ragResults.length === 0 && get().notes.length > 0) {
+        const query = content.toLowerCase();
+        const words = query.split(/\s+/).filter((w) => w.length > 2);
+        const scored = get().notes.map((n) => {
+          const haystack = `${n.title} ${n.content} ${n.subject} ${n.tags.map((t) => t.label).join(' ')}`.toLowerCase();
+          let score = 0;
+          for (const w of words) {
+            const re = new RegExp(w, 'g');
+            const matches = (haystack.match(re) ?? []).length;
+            score += matches;
+            if (n.title.toLowerCase().includes(w)) score += 3;
+          }
+          const daysSince = (Date.now() - n.updatedAt.getTime()) / 86_400_000;
+          if (daysSince < 14) score += (14 - daysSince) / 14;
+          return { note: n, score };
+        });
+        ragResults = scored
+          .filter((s) => s.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 5)
+          .map((s) => ({
+            id: s.note.id,
+            score: s.score,
+            payload: {
+              noteId: s.note.id,
+              title: s.note.title,
+              content: s.note.content.slice(0, 400),
+              subject: s.note.subject,
+            },
+          }));
+        if (ragResults.length === 0) {
+          ragResults = [...get().notes]
+            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+            .slice(0, 5)
+            .map((n) => ({
+              id: n.id,
+              score: 0,
+              payload: { noteId: n.id, title: n.title, content: n.content.slice(0, 400), subject: n.subject },
+            }));
+        }
       }
 
-      // ── Step 2: call DeepSeek with retrieved context ──────────────────────
+      // ── Step 2: call DeepSeek avec contexte + profil utilisateur ─────────
+      const { userType, learningProfile } = get();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: history,
           query: content,
-          context: ragResults,   // injected into the system prompt
+          context: ragResults,
+          userType,
+          learningProfile,
         }),
       });
 
       const data = await res.json();
 
-      // Map Qdrant results → NoteSource for display in the UI
       const sources = ragResults.slice(0, 3).map((r) => ({
         noteId: r.payload.noteId,
         title: r.payload.title,
@@ -340,29 +439,45 @@ export const useStore = create<AppStore>((set, get) => ({
       const assistantMsg: ChatMessage = {
         id: loadingMsg.id,
         role: 'assistant',
-        content: data.message ?? 'Sorry, I could not respond right now.',
+        content: data.message ?? 'Désolé, je n\'ai pas pu répondre.',
         timestamp: new Date(),
         sources: sources.length > 0 ? sources : data.sources,
         isLoading: false,
       };
 
+      const updatedSession = get().sessions.find((s) => s.id === sessionId);
+      const newMessages = (updatedSession?.messages ?? []).map((m) =>
+        m.id === loadingMsg.id ? assistantMsg : m
+      );
+      const newTitle = (updatedSession?.messages.length === 1)
+        ? content.slice(0, 40)
+        : updatedSession?.title ?? 'Nouvelle conversation';
+
       set((s) => ({
         sessions: s.sessions.map((sess) =>
           sess.id === sessionId
-            ? {
-                ...sess,
-                messages: sess.messages.map((m) => (m.id === loadingMsg.id ? assistantMsg : m)),
-                title: sess.messages.length === 1 ? content.slice(0, 40) : sess.title,
-              }
+            ? { ...sess, messages: newMessages, title: newTitle, updatedAt: new Date() }
             : sess
         ),
         isAILoading: false,
       }));
+
+      // ── Sauvegarde persistante (fire-and-forget) ──────────────────────────
+      fetch('/api/chat/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          title: newTitle,
+          messages: newMessages,
+        }),
+      }).catch(() => {/* silencieux */});
+
     } catch {
       const errMsg: ChatMessage = {
         id: loadingMsg.id,
         role: 'assistant',
-        content: 'Connection error. Please check your API configuration.',
+        content: 'Erreur de connexion. Vérifie ta configuration API.',
         timestamp: new Date(),
         isLoading: false,
       };
@@ -378,6 +493,37 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   setActiveSession: (id) => set({ activeSessionId: id }),
+
+  // ── User Profile ────────────────────────────────────────────────────────────
+  userType: 'eleve',
+  learningProfile: { weakSubjects: [], studiedTopics: [], totalSessions: 0 },
+  profileLoaded: false,
+
+  loadUserProfile: async () => {
+    try {
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) return;
+      const data = await res.json();
+      set({
+        userType: data.user?.userType ?? 'eleve',
+        learningProfile: data.user?.learningProfile ?? { weakSubjects: [], studiedTopics: [], totalSessions: 0 },
+        profileLoaded: true,
+      });
+    } catch {
+      set({ profileLoaded: true });
+    }
+  },
+
+  setUserType: async (t: UserType) => {
+    set({ userType: t });
+    try {
+      await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userType: t }),
+      });
+    } catch {/* silencieux */}
+  },
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   activeRoute: 'journal',

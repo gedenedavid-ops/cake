@@ -6,7 +6,7 @@ import { User } from '@/models/User';
 // POST /api/auth/inscription — créer un compte
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, userType = 'eleve' } = await request.json();
 
     if (!name?.trim() || !email?.trim() || !password) {
       return NextResponse.json(
@@ -35,9 +35,10 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await User.create({
-      name:  name.trim(),
-      email: email.toLowerCase().trim(),
+      name:         name.trim(),
+      email:        email.toLowerCase().trim(),
       passwordHash,
+      userType:     ['eleve', 'etudiant'].includes(userType) ? userType : 'eleve',
     });
 
     return NextResponse.json(

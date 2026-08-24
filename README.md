@@ -1,6 +1,6 @@
 # 🎂 Cake — Compagnon d'études IA
 
-> Application web PWA-ready destinée aux étudiants francophones. Capture de notes, carte des connaissances interactive, et tuteur IA personnel propulsé par DeepSeek + RAG (Voyage AI + Qdrant).
+> Application web PWA-ready destinée aux élèves et étudiants francophones. Capture de notes, carte des connaissances interactive, et tuteur IA personnel propulsé par DeepSeek + RAG dual (notes perso + curriculum ivoirien officiel).
 
 ---
 
@@ -39,14 +39,23 @@
 Question utilisateur
        │
        ▼
-Voyage AI (voyage-3)          → embedding de la question
+Voyage AI (voyage-3)           → embedding de la question
        │
-       ▼
-Qdrant (multitenancy userId)  → top-5 passages similaires
-       │
-       ▼
-DeepSeek (deepseek-chat)      → réponse contextualisée en français
+       ├──────────────────────────────────────────────────┐
+       ▼                                                   ▼
+Qdrant cake_notes               Qdrant cours_ivoiriens
+(notes perso, filtre userId)    (programme officiel, partagé)
+       │                                                   │
+       └──────────────────┬───────────────────────────────┘
+                          ▼
+              Contexte fusionné dans le system prompt
+              + Profil apprenant (userType, matières faibles)
+              + Résumés des sessions passées
+                          │
+                          ▼
+DeepSeek (deepseek-chat)       → réponse personnalisée en français
 ```
+> Élèves : RAG dual (notes + curriculum). Étudiants : open bar, notes uniquement.
 
 ---
 
@@ -94,6 +103,9 @@ VOYAGE_API_KEY=pa-...
 QDRANT_URL=https://ton-cluster.qdrant.io
 QDRANT_API_KEY=ta_cle_qdrant
 QDRANT_COLLECTION=cake_notes
+
+# Collection curriculum officiel (partagée, pas de filtre userId)
+QDRANT_CURRICULUM_COLLECTION=cours_ivoiriens
 ```
 
 ### 3. Configurer Qdrant
@@ -133,7 +145,9 @@ src/
 │       ├── auth/inscription    # POST — créer un compte
 │       ├── notes/              # GET liste / POST créer
 │       ├── notes/[id]          # GET / PUT / DELETE (protégé par userId)
-│       ├── chat/               # POST — DeepSeek avec contexte RAG
+│       ├── chat/               # POST — DeepSeek avec RAG dual + profil
+│       ├── chat/sessions/      # GET / POST / DELETE — persistance sessions MongoDB
+│       ├── user/profile/       # GET / PATCH — userType + learningProfile
 │       ├── embed/              # POST — Voyage AI embeddings
 │       └── search/             # POST search / PUT upsert / DELETE — Qdrant
 │
@@ -150,8 +164,9 @@ src/
 │   └── utils.ts                # cn(), dates, SUBJECT_CONFIG, MOOD_CONFIG
 │
 ├── models/
-│   ├── User.ts                 # Schéma MongoDB utilisateur
-│   └── Note.ts                 # Schéma MongoDB note (indexé par userId)
+│   ├── User.ts                 # Schéma MongoDB utilisateur (+ userType, learningProfile)
+│   ├── Note.ts                 # Schéma MongoDB note (indexé par userId)
+│   └── ChatSession.ts          # Schéma MongoDB sessions de chat (persistantes)
 │
 ├── store/index.ts              # Zustand (notes async, chat, UI, préférences)
 ├── types/index.ts              # Types TypeScript globaux
@@ -179,7 +194,8 @@ npx vercel
 # Variables d'env à configurer dans le dashboard Vercel :
 # MONGODB_URI, AUTH_SECRET, AUTH_URL, GOOGLE_CLIENT_ID,
 # GOOGLE_CLIENT_SECRET, DEEPSEEK_API_KEY, VOYAGE_API_KEY,
-# QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION
+# QDRANT_URL, QDRANT_API_KEY, QDRANT_COLLECTION,
+# QDRANT_CURRICULUM_COLLECTION
 ```
 
 **Redirect URIs à mettre à jour après déploiement :**

@@ -12,6 +12,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { Shell } from '@/components/layout/Shell';
 import { useStore } from '@/store';
 import type { NoteLayout, AccentColor } from '@/store';
+import type { UserType } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -200,8 +201,13 @@ const LAYOUTS: { value: NoteLayout; label: string; icon: React.ElementType }[] =
   { value: 'list',    label: 'Liste',    icon: List       },
 ];
 
+const USER_TYPES: { value: UserType; label: string; desc: string }[] = [
+  { value: 'eleve',    label: '🎒 Élève',    desc: 'Collège / Lycée · Programme ivoirien · RAG curriculaire' },
+  { value: 'etudiant', label: '🎓 Étudiant', desc: 'Université / Supérieur · Accès libre à tous les sujets' },
+];
+
 export default function SettingsPage() {
-  const { notes, addToast, prefs, updatePrefs } = useStore();
+  const { notes, addToast, prefs, updatePrefs, userType, setUserType } = useStore();
   const { data: session } = useSession();
   const [section, setSection] = useState<Section>('profile');
   const [displayNameDraft, setDisplayNameDraft] = useState(prefs.displayName);
@@ -323,6 +329,29 @@ export default function SettingsPage() {
               </SectionCard>
 
               <SectionCard title="Tuteur IA" icon={Sparkles}>
+                {/* Type d'utilisateur */}
+                <div>
+                  <p className="text-sm font-medium text-[#1A1A1A] mb-2">Mon profil</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {USER_TYPES.map(({ value, label, desc }) => (
+                      <button
+                        key={value}
+                        onClick={() => setUserType(value)}
+                        className={cn(
+                          'flex flex-col gap-1 p-3 rounded-xl border text-left transition-all',
+                          userType === value
+                            ? 'bg-[#FDF0DC] border-[#F4A236] text-[#1A1A1A]'
+                            : 'bg-white border-[#E8E4DF] text-[#9B9590] hover:border-[#F4A236]'
+                        )}
+                      >
+                        <span className="text-sm font-semibold">{label}</span>
+                        <span className="text-[10px] leading-snug">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Toggle IA */}
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-[#1A1A1A]">Activer les fonctions IA</p>
@@ -339,7 +368,10 @@ export default function SettingsPage() {
                 <div className="flex gap-2 p-3 bg-[#F5F3EF] rounded-xl">
                   <Info size={13} className="text-[#9B9590] flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-[#9B9590] leading-relaxed">
-                    Tes notes restent sur cet appareil. L'IA ne reçoit que les extraits pertinents pour répondre à ta question — jamais l'intégralité de tes notes.
+                    {userType === 'eleve'
+                      ? 'En mode Élève, l\'IA s\'appuie sur tes notes ET sur le programme scolaire ivoirien officiel.'
+                      : 'En mode Étudiant, l\'IA répond librement sur tous les sujets à partir de tes notes.'
+                    }
                   </p>
                 </div>
               </SectionCard>
