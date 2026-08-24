@@ -463,14 +463,29 @@ export const useStore = create<AppStore>((set, get) => ({
       }));
 
       // ── Sauvegarde persistante (fire-and-forget) ──────────────────────────
+      // N'envoyer sessionId que si c'est déjà un vrai id MongoDB (24 hex chars)
+      const isMongoId = typeof sessionId === 'string' && /^[0-9a-f]{24}$/i.test(sessionId);
       fetch('/api/chat/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId,
+          ...(isMongoId ? { sessionId } : {}),
           title: newTitle,
           messages: newMessages,
         }),
+      }).then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        // Si on vient de créer une session (id temporaire → id MongoDB), mettre à jour le store
+        const dbId = data.session?._id ?? data.session?.id;
+        if (!isMongoId && dbId) {
+          set((s) => ({
+            sessions: s.sessions.map((se) =>
+              se.id === sessionId ? { ...se, id: dbId } : se
+            ),
+            activeSessionId: s.activeSessionId === sessionId ? dbId : s.activeSessionId,
+          }));
+        }
       }).catch(() => {/* silencieux */});
 
     } catch {

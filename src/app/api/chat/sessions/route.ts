@@ -34,20 +34,21 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { sessionId, title, messages, summary } = body;
 
-  if (sessionId) {
-    // Mise à jour d'une session existante (upsert)
+  // Un vrai id MongoDB est une chaîne hex de 24 caractères
+  const isMongoId = typeof sessionId === 'string' && /^[0-9a-f]{24}$/i.test(sessionId);
+
+  if (isMongoId) {
+    // Mise à jour d'une session existante
     const updated = await ChatSessionModel.findOneAndUpdate(
       { _id: sessionId, userId: session.user.id },
       { $set: { title, messages, ...(summary ? { summary } : {}) } },
       { new: true, lean: true }
     );
-    if (!updated) {
-      return NextResponse.json({ error: 'Session introuvable' }, { status: 404 });
-    }
-    return NextResponse.json({ session: updated });
+    // Si introuvable (ex: supprimée entre-temps), on recrée silencieusement
+    if (updated) return NextResponse.json({ session: updated });
   }
 
-  // Création d'une nouvelle session
+  // Création d'une nouvelle session (id temporaire ou session inconnue)
   const created = await ChatSessionModel.create({
     userId:   session.user.id,
     title:    title ?? 'Nouvelle conversation',
@@ -77,6 +78,10 @@ export async function DELETE(request: Request) {
   await connectDB();
 
   const { sessionId } = await request.json();
-  await ChatSessionModel.deleteOne({ _id: sessionId, userId: session.user.id });
+  // Ignorer silencieusement les ids non-MongoDB (temporaires)
+  const isMongoId = typeof sessionId === 'string' && /^[0-9a-f]{24}$/i.test(sessionId);
+  if (isMongoId) {
+    await ChatSessionModel.deleteOne({ _id: sessionId, userId: session.user.id });
+  }
   return NextResponse.json({ success: true });
 }
