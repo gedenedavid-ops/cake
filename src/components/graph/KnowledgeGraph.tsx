@@ -19,111 +19,159 @@ interface LinkDatum {
   source: GraphDatum | string;
   target: GraphDatum | string;
   strength?: number;
+  kind?: 'subject-note' | 'subject-tag' | 'note-tag' | 'note-note';
 }
 
 interface KnowledgeGraphProps {
-  onNodeClick?: (nodeId: string, label: string) => void;
+  onNodeClick?: (nodeId: string, label: string, type: string) => void;
+  showAllNotes?: boolean;   // toggle "toutes les notes" vs épinglées/favorites seulement
 }
 
-// Tronque un label pour éviter les débordements sur les nœuds
 function shortLabel(text: string, max = 14): string {
   return text.length > max ? text.slice(0, max - 1) + '…' : text;
 }
 
-export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+export function KnowledgeGraph({ onNodeClick, showAllNotes = true }: KnowledgeGraphProps) {
+  const svgRef       = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Ref stable pour le filtre actif — évite de recréer la simulation à chaque clic
-  const filterRef = useRef<string | null>(null);
+  const filterRef    = useRef<string | null>(null);
   const { notes, setGraphFilter, graphFilterNodeId } = useStore();
-  const [hoveredNode, setHoveredNode] = useState<{ id: string; label: string; x: number; y: number } | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<{
+    id: string; label: string; type: string;
+    noteCount?: number; wordCount?: number; x: number; y: number;
+  } | null>(null);
 
-  // Garde filterRef synchronisé sans déclencher le useEffect de simulation
-  useEffect(() => {
-    filterRef.current = graphFilterNodeId;
-  }, [graphFilterNodeId]);
+  useEffect(() => { filterRef.current = graphFilterNodeId; }, [graphFilterNodeId]);
 
   const buildGraphData = useCallback(() => {
     const nodes: GraphDatum[] = [];
-    const links: LinkDatum[] = [];
+    const links: LinkDatum[]  = [];
     const nodeMap = new Map<string, GraphDatum>();
 
+    // ── Nœuds matières ────────────────────────────────────────────────────────
     const subjectsInNotes = new Set(notes.map((n) => n.subject));
-
-    // Nœuds matières
     subjectsInNotes.forEach((subject) => {
       const config = SUBJECT_CONFIG[subject as Subject];
       if (!config) return;
+      const notesForSubject = notes.filter((n) => n.subject === subject);
       const node: GraphDatum = {
-        id: subject,
-        label: `${config.emoji} ${shortLabel(subject, 16)}`,
-        type: 'subject',
+        id:      subject,
+        label:   `${config.emoji} ${shortLabel(subject, 16)}`,
+        type:    'subject',
         subject: subject as Subject,
-        color: config.color,
-        size: 22,
-        noteIds: notes.filter((n) => n.subject === subject).map((n) => n.id),
+        color:   config.color,
+        size:    // taille selon nb de notes : 18..32
+          Math.min(32, 18 + notesForSubject.length * 1.5),
+        noteIds: notesForSubject.map((n) => n.id),
       };
       nodes.push(node);
       nodeMap.set(subject, node);
     });
 
-    // Nœuds concepts (tags)
+    // ── Nœuds concepts (tags) ─────────────────────────────────────────────────
     const tagCounts = new Map<string, number>();
     notes.forEach((note) => {
       note.tags.forEach((tag) => {
         tagCounts.set(tag.label, (tagCounts.get(tag.label) ?? 0) + 1);
       });
     });
-
     tagCounts.forEach((count, tagLabel) => {
       const node: GraphDatum = {
-        id: `tag:${tagLabel}`,
+        id:    `tag:${tagLabel}`,
         label: `#${shortLabel(tagLabel, 12)}`,
-        type: 'concept',
+        type:  'concept',
         color: GRAPH_NODE_COLORS.concept,
-        size: Math.min(8 + count * 2, 18),
+        size:  Math.min(8 + count * 2, 18),
       };
       nodes.push(node);
       nodeMap.set(`tag:${tagLabel}`, node);
     });
 
-    // Liens : matière → tags des notes de cette matière
-    notes.forEach((note) => {
-      if (!nodeMap.get(note.subject)) return;
-      note.tags.forEach((tag) => {
-        if (!nodeMap.get(`tag:${tag.label}`)) return;
-        const exists = links.some(
-          (l) =>
-            (l.source === note.subject && l.target === `tag:${tag.label}`) ||
-            (l.target === note.subject && l.source === `tag:${tag.label}`)
-        );
-        if (!exists) links.push({ source: note.subject, target: `tag:${tag.label}`, strength: 0.3 });
-      });
-    });
+    // ── Nœuds notes ───────────────────────────────────────────────────────────
+    const notesToShow = showAllNotes
+      ? notes
+      : notes.filter((n) => n.isPinned || n.isFavorite);
 
-    // Nœuds notes épinglées / favorites
-    notes.filter((n) => n.isPinned || n.isFavorite).forEach((note) => {
+    notesToShow.forEach((note) => {
+      const subjectCfg = SUBJECT_CONFIG[note.subject as Subject];
+      // Taille selon nb de mots (6..16)
+      const size = Math.min(16, Math.max(6, 6 + Math.sqrt(note.wordCount) * 0.6));
       const node: GraphDatum = {
-        id: note.id,
-        label: shortLabel(note.title, 18),
-        type: 'note',
-        color: GRAPH_NODE_COLORS.note,
-        size: 10,
+        id:    note.id,
+        label: shortLabel(note.title, 20),
+        type:  'note',
+        // couleur légèrement désaturée de la matière
+        color: subjectCfg?.color ?? GRAPH_NODE_COLORS.note,
+        size,
       };
       nodes.push(node);
       nodeMap.set(note.id, node);
-      links.push({ source: note.subject, target: note.id, strength: 0.5 });
     });
 
-    return { nodes, links };
-  }, [notes]);
+    // ── Liens matière → tag ───────────────────────────────────────────────────
+    notes.forEach((note) => {
+      if (!nodeMap.has(note.subject)) return;
+      note.tags.forEach((tag) => {
+        const tagId = `tag:${tag.label}`;
+        if (!nodeMap.has(tagId)) return;
+        const exists = links.some(
+          (l) =>
+            (l.source === note.subject && l.target === tagId) ||
+            (l.target === note.subject && l.source === tagId)
+        );
+        if (!exists) links.push({ source: note.subject, target: tagId, strength: 0.25, kind: 'subject-tag' });
+      });
+    });
 
-  // ── Simulation — ne dépend PAS de graphFilterNodeId pour éviter le re-render ──
+    // ── Liens matière → note ──────────────────────────────────────────────────
+    notesToShow.forEach((note) => {
+      if (!nodeMap.has(note.subject) || !nodeMap.has(note.id)) return;
+      links.push({ source: note.subject, target: note.id, strength: 0.5, kind: 'subject-note' });
+    });
+
+    // ── Liens note → tag ──────────────────────────────────────────────────────
+    notesToShow.forEach((note) => {
+      if (!nodeMap.has(note.id)) return;
+      note.tags.forEach((tag) => {
+        const tagId = `tag:${tag.label}`;
+        if (!nodeMap.has(tagId)) return;
+        links.push({ source: note.id, target: tagId, strength: 0.2, kind: 'note-tag' });
+      });
+    });
+
+    // ── Liens note ↔ note (tags communs) ─────────────────────────────────────
+    // Pour chaque paire de notes, si elles partagent ≥1 tag → lien faible
+    const noteIds = notesToShow.map((n) => n.id);
+    const noteTagSets = new Map<string, Set<string>>(
+      notesToShow.map((n) => [n.id, new Set(n.tags.map((t) => t.label))])
+    );
+    for (let i = 0; i < noteIds.length; i++) {
+      for (let j = i + 1; j < noteIds.length; j++) {
+        const a = noteIds[i], b = noteIds[j];
+        const tagsA = noteTagSets.get(a)!;
+        const tagsB = noteTagSets.get(b)!;
+        // compte les tags en commun
+        let shared = 0;
+        for (const t of tagsA) if (tagsB.has(t)) shared++;
+        if (shared > 0 && nodeMap.has(a) && nodeMap.has(b)) {
+          links.push({
+            source: a, target: b,
+            strength: Math.min(0.05 * shared, 0.3),
+            kind: 'note-note',
+          });
+        }
+      }
+    }
+
+    return { nodes, links };
+  }, [notes, showAllNotes]);
+
+  // ── Simulation D3 ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
 
     const container = containerRef.current;
-    const width = container.clientWidth || 600;
+    const width  = container.clientWidth  || 600;
     const height = container.clientHeight || 400;
 
     const svg = d3.select(svgRef.current);
@@ -137,27 +185,38 @@ export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
 
     // Zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.25, 4])
+      .scaleExtent([0.15, 5])
       .on('zoom', (event) => g.attr('transform', event.transform));
     svg.call(zoom);
 
-    // Simulation
+    // Simulation — charge répulsive plus forte pour les grands graphes
+    const repulse = Math.max(-320, -120 - nodes.length * 3);
     const simulation = d3.forceSimulation<GraphDatum>(nodes)
-      .force('link', d3.forceLink<GraphDatum, LinkDatum>(links).id((d) => d.id).distance(100).strength(0.4))
-      .force('charge', d3.forceManyBody<GraphDatum>().strength(-280))
+      .force('link', d3.forceLink<GraphDatum, LinkDatum>(links)
+        .id((d) => d.id)
+        .distance((l) => {
+          if (l.kind === 'subject-note') return 90;
+          if (l.kind === 'note-note')    return 60;
+          if (l.kind === 'note-tag')     return 70;
+          return 110; // subject-tag
+        })
+        .strength((l) => l.strength ?? 0.3))
+      .force('charge', d3.forceManyBody<GraphDatum>().strength(repulse))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide<GraphDatum>().radius((d) => (d.size ?? 10) + 16));
+      .force('collision', d3.forceCollide<GraphDatum>().radius((d) => (d.size ?? 10) + 14));
 
-    // Liens
+    // ── Liens ──────────────────────────────────────────────────────────────
     const link = g.append('g')
       .selectAll('line')
       .data(links)
       .join('line')
-      .attr('stroke', '#E8E4DF')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-linecap', 'round');
+      .attr('stroke', (d) => d.kind === 'note-note' ? '#C8C4BE' : '#E8E4DF')
+      .attr('stroke-width', (d) => d.kind === 'note-note' ? 1 : 1.5)
+      .attr('stroke-dasharray', (d) => d.kind === 'note-note' ? '3,3' : null)
+      .attr('stroke-linecap', 'round')
+      .attr('opacity', (d) => d.kind === 'note-note' ? 0.5 : 1);
 
-    // Groupes de nœuds
+    // ── Nœuds ──────────────────────────────────────────────────────────────
     const nodeGroup = g.append('g')
       .selectAll<SVGGElement, GraphDatum>('g')
       .data(nodes)
@@ -166,14 +225,14 @@ export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
       .call(
         d3.drag<SVGGElement, GraphDatum>()
           .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-          .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
-          .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+          .on('drag',  (event, d) => { d.fx = event.x; d.fy = event.y; })
+          .on('end',   (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
       );
 
-    // Fond blanc sur les nœuds matière (lisibilité)
+    // Halo blanc derrière les nœuds matière
     nodeGroup.filter((d) => d.type === 'subject')
       .append('circle')
-      .attr('r', (d) => (d.size ?? 22) + 3)
+      .attr('r', (d) => (d.size ?? 22) + 4)
       .attr('fill', 'white')
       .attr('fill-opacity', 0.6);
 
@@ -183,15 +242,20 @@ export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
       .attr('fill', (d) => {
         if (d.type === 'subject') return SUBJECT_CONFIG[d.subject!]?.color ?? '#F4A236';
         if (d.type === 'concept') return '#1A1A1A';
-        return '#9B9590';
+        // note : couleur de la matière à 70% d'opacité — rendu via fill-opacity
+        return d.color ?? '#9B9590';
       })
-      .attr('fill-opacity', 0.88)
+      .attr('fill-opacity', (d) => d.type === 'note' ? 0.65 : 0.88)
       .attr('stroke', 'white')
       .attr('stroke-width', 2);
 
-    // Labels
+    // Labels (seulement matières + concepts, pas les notes sauf si peu nombreuses)
+    const showNoteLabels = nodes.filter((n) => n.type === 'note').length <= 20;
     nodeGroup.append('text')
-      .text((d) => d.label)
+      .text((d) => {
+        if (d.type === 'note' && !showNoteLabels) return '';
+        return d.label;
+      })
       .attr('text-anchor', 'middle')
       .attr('dy', (d) => (d.size ?? 10) + 13)
       .attr('font-size', (d) => d.type === 'subject' ? '11px' : '9px')
@@ -199,52 +263,64 @@ export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
       .attr('fill', '#1A1A1A')
       .attr('pointer-events', 'none');
 
-    // Fonction pour mettre à jour les styles selon le filtre actif (sans recréer la sim)
+    // ── Filtre visuel (sans recréer la sim) ────────────────────────────────
     const updateFilterStyles = (activeId: string | null) => {
       circles
         .attr('stroke', (d) => activeId === d.id ? '#F4A236' : 'white')
         .attr('stroke-width', (d) => activeId === d.id ? 3.5 : 2)
         .attr('fill-opacity', (d) => {
-          if (!activeId) return 0.88;
-          return activeId === d.id ? 1 : 0.35;
+          if (!activeId) return d.type === 'note' ? 0.65 : 0.88;
+          return activeId === d.id ? 1 : 0.2;
         });
       link.attr('stroke-opacity', (d) => {
-        if (!activeId) return 1;
+        if (!activeId) return d.kind === 'note-note' ? 0.5 : 1;
         const src = typeof d.source === 'string' ? d.source : (d.source as GraphDatum).id;
         const tgt = typeof d.target === 'string' ? d.target : (d.target as GraphDatum).id;
-        return src === activeId || tgt === activeId ? 1 : 0.15;
+        return src === activeId || tgt === activeId ? 1 : 0.08;
       });
     };
 
-    // Appliquer le filtre initial (si un filtre était déjà actif avant re-render)
     updateFilterStyles(filterRef.current);
 
-    // Écoute les changements de filtre via un custom event
     const handleFilterChange = (e: Event) => {
-      const { nodeId } = (e as CustomEvent).detail;
-      updateFilterStyles(nodeId);
+      updateFilterStyles(((e as CustomEvent).detail as { nodeId: string }).nodeId);
     };
     svgRef.current?.addEventListener('cake:filter', handleFilterChange);
 
-    // Clic nœud
+    // ── Clic nœud ──────────────────────────────────────────────────────────
     nodeGroup.on('click', (event, d) => {
       event.stopPropagation();
       const newFilter = filterRef.current === d.id ? null : d.id;
       filterRef.current = newFilter;
       setGraphFilter(newFilter);
       updateFilterStyles(newFilter);
-      onNodeClick?.(d.id, d.label);
+      onNodeClick?.(d.id, d.label, d.type);
     });
 
-    // Hover
+    // ── Hover ──────────────────────────────────────────────────────────────
     nodeGroup
       .on('mouseenter', (event, d) => {
         const rect = container.getBoundingClientRect();
-        setHoveredNode({ id: d.id, label: d.label, x: event.clientX - rect.left, y: event.clientY - rect.top });
+        // Compte les notes liées à ce nœud (matière ou tag)
+        let noteCount: number | undefined;
+        let wordCount: number | undefined;
+        if (d.type === 'subject') {
+          const subjectNotes = notes.filter((n) => n.subject === d.id);
+          noteCount = subjectNotes.length;
+          wordCount = subjectNotes.reduce((s, n) => s + n.wordCount, 0);
+        } else if (d.type === 'concept') {
+          const tagLabel = d.id.replace('tag:', '');
+          noteCount = notes.filter((n) => n.tags.some((t) => t.label === tagLabel)).length;
+        }
+        setHoveredNode({
+          id: d.id, label: d.label, type: d.type,
+          noteCount, wordCount,
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        });
         d3.select<SVGGElement, GraphDatum>(event.currentTarget)
           .select('circle:last-of-type')
-          .attr('stroke', '#F4A236')
-          .attr('stroke-width', 3);
+          .attr('stroke', '#F4A236').attr('stroke-width', 3);
       })
       .on('mouseleave', (event, d) => {
         setHoveredNode(null);
@@ -275,19 +351,26 @@ export function KnowledgeGraph({ onNodeClick }: KnowledgeGraphProps) {
       simulation.stop();
       svgRef.current?.removeEventListener('cake:filter', handleFilterChange);
     };
-  // graphFilterNodeId intentionnellement exclu — les styles sont gérés en interne via filterRef
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, buildGraphData, setGraphFilter, onNodeClick]);
+  }, [notes, showAllNotes, buildGraphData, setGraphFilter, onNodeClick]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <svg ref={svgRef} className="w-full h-full" />
+
+      {/* Tooltip hover enrichi */}
       {hoveredNode && (
         <div
-          className="graph-tooltip"
+          className="pointer-events-none absolute z-10 bg-[#1A1A1A] text-white text-xs px-3 py-2 rounded-xl shadow-lg max-w-[180px]"
           style={{ left: hoveredNode.x + 14, top: hoveredNode.y - 10 }}
         >
-          {hoveredNode.label}
+          <p className="font-semibold leading-tight">{hoveredNode.label}</p>
+          {hoveredNode.noteCount !== undefined && (
+            <p className="text-[#C8C4BE] mt-0.5">
+              {hoveredNode.noteCount} note{hoveredNode.noteCount > 1 ? 's' : ''}
+              {hoveredNode.wordCount ? ` · ${hoveredNode.wordCount} mots` : ''}
+            </p>
+          )}
         </div>
       )}
     </div>

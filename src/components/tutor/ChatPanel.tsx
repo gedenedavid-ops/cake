@@ -204,13 +204,22 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-export function ChatPanel() {
+export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
   const { sessions, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
   const activeSession = useActiveSession();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Pré-remplir depuis le graph (une seule fois)
+  useEffect(() => {
+    if (initialPrompt && !input) {
+      setInput(initialPrompt);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
