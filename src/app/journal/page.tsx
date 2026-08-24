@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, X, SlidersHorizontal,
   BookOpen, TrendingUp, Zap, Clock,
-  LayoutGrid, List, Columns2,
+  LayoutGrid, List, Columns2, Smile,
 } from 'lucide-react';
 import { useStore, useFilteredNotes } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, cn } from '@/lib/utils';
@@ -15,6 +15,142 @@ import { PinLockModal } from '@/components/journal/PinLock';
 import { Button } from '@/components/ui/Button';
 import type { Note, Subject, Mood } from '@/types';
 import type { NoteLayout } from '@/store';
+
+// ─── Mini dashboard humeur ────────────────────────────────────────────────────
+
+function MoodDashboard({ notes }: { notes: Note[] }) {
+  // Notes des 14 derniers jours avec une humeur
+  const recent = useMemo(() => {
+    const cutoff = Date.now() - 14 * 86_400_000;
+    return notes.filter((n) => n.mood && n.updatedAt.getTime() > cutoff);
+  }, [notes]);
+
+  if (recent.length < 2) return null;
+
+  // Comptage par humeur
+  const counts = recent.reduce<Record<string, number>>((acc, n) => {
+    acc[n.mood!] = (acc[n.mood!] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const total = recent.length;
+  const confusedRatio = (counts['confused'] ?? 0) / total;
+  const hasAlert = confusedRatio > 0.35;
+
+  // Matières où l'humeur "confus" domine
+  const confusedSubjects = useMemo(() => {
+    const bySubject: Record<string, { confused: number; total: number }> = {};
+    recent.forEach((n) => {
+      if (!bySubject[n.subject]) bySubject[n.subject] = { confused: 0, total: 0 };
+      bySubject[n.subject].total++;
+      if (n.mood === 'confused') bySubject[n.subject].confused++;
+    });
+    return Object.entries(bySubject)
+      .filter(([, v]) => v.confused / v.total > 0.5 && v.confused >= 2)
+      .map(([subject]) => subject);
+  }, [recent]);
+
+  // Courbe 7 derniers jours : tableau de { day, emoji, count }
+  const days = useMemo(() => {
+    const result: { label: string; emoji: string; mood: string }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayNotes = recent.filter((n) => {
+        const nd = new Date(n.updatedAt);
+        return nd.getDate() === d.getDate() && nd.getMonth() === d.getMonth();
+      });
+      const dominant = dayNotes.length > 0
+        ? Object.entries(
+            dayNotes.reduce<Record<string, number>>((a, n) => {
+              a[n.mood!] = (a[n.mood!] ?? 0) + 1; return a;
+            }, {})
+          ).sort((a, b) => b[1] - a[1])[0]?.[0]
+        : null;
+      result.push({
+        label: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][d.getDay()],
+        emoji: dominant ? MOOD_CONFIG[dominant as Mood]?.emoji ?? '' : '·',
+        mood: dominant ?? '',
+      });
+    }
+    return result;
+  }, [recent]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        'rounded-2xl border p-4 mb-6',
+        hasAlert ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#E8E4DF]'
+      )}
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <Smile size={15} className={hasAlert ? 'text-amber-500' : 'text-[#9B9590]'} />
+          <p className="text-xs font-semibold text-[#1A1A1A]">
+            Humeur des 14 derniers jours
+          </p>
+        </div>
+        {hasAlert && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full flex-shrink-0">
+            ⚠️ Beaucoup de confusion
+          </span>
+        )}
+      </div>
+
+      {/* Barre humeurs */}
+      <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
+        {(Object.entries(counts) as [Mood, number][])
+          .sort((a, b) => b[1] - a[1])
+          .map(([mood, count]) => (
+            <div
+              key={mood}
+              title={`${MOOD_CONFIG[mood]?.label} : ${count}`}
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${(count / total) * 100}%`,
+                backgroundColor: MOOD_CONFIG[mood]?.color ?? '#E8E4DF',
+              }}
+            />
+          ))}
+      </div>
+
+      {/* Légende comptage */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {(Object.entries(counts) as [Mood, number][])
+          .sort((a, b) => b[1] - a[1])
+          .map(([mood, count]) => (
+            <span key={mood} className="flex items-center gap-1 text-[11px] text-[#57606a]">
+              <span>{MOOD_CONFIG[mood]?.emoji}</span>
+              <span className="font-medium">{count}</span>
+            </span>
+          ))}
+      </div>
+
+      {/* Courbe 7 jours */}
+      <div className="flex gap-1">
+        {days.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+            <span className="text-sm leading-none">{d.emoji || '·'}</span>
+            <span className="text-[9px] text-[#C8C4BE]">{d.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Alerte matières en difficulté */}
+      {confusedSubjects.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-amber-200">
+          <p className="text-[11px] text-amber-700">
+            <strong>Lacunes détectées :</strong>{' '}
+            {confusedSubjects.map((s) => `${SUBJECT_CONFIG[s as Subject]?.emoji} ${s}`).join(', ')}
+            {' '}— Demande à Cake de t'aider !
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 const SUBJECTS = Object.keys(SUBJECT_CONFIG) as Subject[];
 const MOODS = Object.keys(MOOD_CONFIG) as Mood[];
@@ -189,6 +325,9 @@ export default function JournalPage() {
 
       {/* Contenu principal */}
       <div className="flex-1 px-5 md:px-8 py-5 overflow-y-auto">
+        {/* Dashboard humeur */}
+        {!hasFilters && <MoodDashboard notes={notes} />}
+
         {/* Statistiques */}
         {!hasFilters && notes.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

@@ -331,7 +331,7 @@ export default function GraphPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Légende */}
+              {/* Légende nœuds */}
               <div className="hidden sm:flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-[#E8E4DF] text-xs text-[#9B9590]">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#F4A236]" /> Matières
@@ -345,6 +345,14 @@ export default function GraphPage() {
                 <span className="flex items-center gap-1.5 opacity-60">
                   <span className="w-5 h-px border-t border-dashed border-[#9B9590]" /> Connexions
                 </span>
+              </div>
+
+              {/* Légende maîtrise */}
+              <div className="hidden md:flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-[#E8E4DF] text-xs text-[#9B9590]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider mr-1">Maîtrise</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#22C55E]" /> OK</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Fragile</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" /> Lacune</span>
               </div>
 
               {/* Toggle toutes les notes */}

@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       userType = 'eleve',
       learningProfile,
       pastSummaries,  // résumés des sessions précédentes (optionnel)
+      moodSignal,    // { recentConfused[], moodSummary{} }
     } = await request.json();
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -168,6 +169,39 @@ export async function POST(request: Request) {
         systemContent += `\nSujets déjà abordés : ${learningProfile.studiedTopics.slice(-10).join(', ')}`;
       }
       systemContent += `\n--- FIN DU PROFIL ---`;
+    }
+
+    // Injecter les signaux d'humeur
+    if (moodSignal) {
+      const { recentConfused, moodSummary } = moodSignal as {
+        recentConfused: { title: string; subject: string; content: string }[];
+        moodSummary: Record<string, number>;
+      };
+
+      const totalMoods = Object.values(moodSummary).reduce((s, v) => s + v, 0);
+      if (totalMoods > 0) {
+        const dominant = Object.entries(moodSummary).sort((a, b) => b[1] - a[1])[0];
+        const confusedRatio = (moodSummary['confused'] ?? 0) / totalMoods;
+
+        systemContent += `\n\n--- ÉTAT ÉMOTIONNEL RÉCENT DE L'APPRENANT (14 derniers jours) ---`;
+        systemContent += `\nHumeur dominante : ${dominant[0]} (${dominant[1]} notes)`;
+        if (confusedRatio > 0.4) {
+          systemContent += `\n⚠️ L'apprenant est souvent CONFUS (${Math.round(confusedRatio * 100)}% des notes). Sois particulièrement patient, décompose tes explications en petites étapes, et valide chaque étape avant de continuer.`;
+        } else if (moodSummary['motivated'] || moodSummary['focused']) {
+          systemContent += `\nL'apprenant est en bonne forme (motivé/concentré). Tu peux aller plus loin dans les détails et les nuances.`;
+        } else if (moodSummary['anxious'] || moodSummary['tired']) {
+          systemContent += `\nL'apprenant semble fatigué ou anxieux. Privilégie les encouragements, les petites victoires et un rythme doux.`;
+        }
+        systemContent += `\n--- FIN DE L'ÉTAT ÉMOTIONNEL ---`;
+      }
+
+      if (recentConfused.length > 0) {
+        systemContent += `\n\n--- NOTES MARQUÉES CONFUSES (priorité d'aide) ---\n`;
+        systemContent += recentConfused.map((n) =>
+          `[${n.subject}] ${n.title} : ${n.content}`
+        ).join('\n---\n');
+        systemContent += `\n--- FIN DES NOTES CONFUSES ---`;
+      }
     }
 
     // Injecter les résumés des sessions passées (mémoire longue durée)

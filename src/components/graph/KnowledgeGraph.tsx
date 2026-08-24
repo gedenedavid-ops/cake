@@ -54,14 +54,26 @@ export function KnowledgeGraph({ onNodeClick, showAllNotes = true }: KnowledgeGr
       const config = SUBJECT_CONFIG[subject as Subject];
       if (!config) return;
       const notesForSubject = notes.filter((n) => n.subject === subject);
+
+      // Indicateur de maîtrise basé sur l'humeur
+      const moodedNotes = notesForSubject.filter((n) => n.mood);
+      const confusedCount = notesForSubject.filter((n) => n.mood === 'confused').length;
+      const confusedRatio = moodedNotes.length > 0 ? confusedCount / moodedNotes.length : 0;
+      // Couleur du nœud : vert (maîtrisé) → orange (fragile) → rouge (lacune)
+      let nodeColor = config.color;
+      if (moodedNotes.length >= 2) {
+        if (confusedRatio > 0.6)      nodeColor = '#EF4444'; // rouge
+        else if (confusedRatio > 0.3) nodeColor = '#F59E0B'; // orange
+        else if (confusedRatio < 0.15) nodeColor = '#22C55E'; // vert
+      }
+
       const node: GraphDatum = {
         id:      subject,
         label:   `${config.emoji} ${shortLabel(subject, 16)}`,
         type:    'subject',
         subject: subject as Subject,
-        color:   config.color,
-        size:    // taille selon nb de notes : 18..32
-          Math.min(32, 18 + notesForSubject.length * 1.5),
+        color:   nodeColor,
+        size:    Math.min(32, 18 + notesForSubject.length * 1.5),
         noteIds: notesForSubject.map((n) => n.id),
       };
       nodes.push(node);
@@ -236,13 +248,11 @@ export function KnowledgeGraph({ onNodeClick, showAllNotes = true }: KnowledgeGr
       .attr('fill', 'white')
       .attr('fill-opacity', 0.6);
 
-    // Cercle principal
+    // Cercle principal — d.color contient déjà la couleur de maîtrise pour les matières
     const circles = nodeGroup.append('circle')
       .attr('r', (d) => d.size ?? 10)
       .attr('fill', (d) => {
-        if (d.type === 'subject') return SUBJECT_CONFIG[d.subject!]?.color ?? '#F4A236';
         if (d.type === 'concept') return '#1A1A1A';
-        // note : couleur de la matière à 70% d'opacité — rendu via fill-opacity
         return d.color ?? '#9B9590';
       })
       .attr('fill-opacity', (d) => d.type === 'note' ? 0.65 : 0.88)

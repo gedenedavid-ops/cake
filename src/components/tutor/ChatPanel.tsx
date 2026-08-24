@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Sparkles, BookOpen, RotateCcw, ChevronDown,
@@ -134,14 +134,57 @@ function renderMarkdown(text: string): React.ReactNode[] {
   return nodes;
 }
 
-const SUGGESTED_PROMPTS = [
+const BASE_PROMPTS = [
   'Interroge-moi sur mes dernières notes 🎯',
-  'Résume mes notes de Mathématiques simplement',
   'Quels sujets ai-je étudiés cette semaine ?',
-  'Aide-moi à comprendre un concept que j\'ai tagué comme confus',
   'Crée un plan de révision basé sur mes notes',
-  'Explique les thèmes clés de mes notes d\'Histoire',
 ];
+
+function useDynamicPrompts(notes: import('@/types').Note[]): string[] {
+  return useMemo(() => {
+    const cutoff = Date.now() - 14 * 86_400_000;
+    const recent = notes.filter((n) => n.mood && n.updatedAt.getTime() > cutoff);
+    const counts = recent.reduce<Record<string, number>>((acc, n) => {
+      acc[n.mood!] = (acc[n.mood!] ?? 0) + 1;
+      return acc;
+    }, {});
+    const total = recent.length;
+    const prompts = [...BASE_PROMPTS];
+
+    if (total === 0) {
+      prompts.push(
+        'Aide-moi à comprendre un concept difficile',
+        'Explique-moi les thèmes clés de mes notes'
+      );
+      return prompts;
+    }
+
+    const confusedRatio  = (counts['confused']  ?? 0) / total;
+    const anxiousRatio   = (counts['anxious']   ?? 0) / total;
+    const motivatedCount = (counts['motivated'] ?? 0) + (counts['focused'] ?? 0);
+
+    if (confusedRatio > 0.35) {
+      // Beaucoup de confusion → aide ciblée
+      const confusedSubjects = [...new Set(
+        recent.filter((n) => n.mood === 'confused').map((n) => n.subject)
+      )].slice(0, 2);
+      prompts.unshift(`Aide-moi avec mes lacunes en ${confusedSubjects.join(' et ')} 😕`);
+      prompts.push('Explique-moi pas à pas un concept que je n\'ai pas compris');
+    } else if (anxiousRatio > 0.3) {
+      // Anxieux → rassurer, quiz doux
+      prompts.unshift('Fais-moi un petit quiz facile pour me rassurer avant l\'exam 😰');
+      prompts.push('Dis-moi ce que je maîtrise déjà bien dans mes notes');
+    } else if (motivatedCount / total > 0.5) {
+      // En forme → approfondissement
+      prompts.unshift('Je suis motivé — approfondissons un sujet difficile 🔥');
+      prompts.push('Crée-moi un quiz challengeant sur mes meilleures notes');
+    } else {
+      prompts.push('Aide-moi à comprendre un concept que j\'ai noté comme confus');
+    }
+
+    return prompts.slice(0, 6);
+  }, [notes]);
+}
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
@@ -206,6 +249,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
   const { sessions, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
+  const suggestedPrompts = useDynamicPrompts(notes);
   const activeSession = useActiveSession();
   const [input, setInput] = useState('');
   const [showSessions, setShowSessions] = useState(false);
@@ -339,7 +383,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
             </p>
             <div className="w-full space-y-2">
               <p className="text-[10px] font-semibold text-[#9B9590] uppercase tracking-wider mb-2">Essaie de demander…</p>
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handlePrompt(prompt)}
