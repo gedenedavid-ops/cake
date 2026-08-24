@@ -413,23 +413,14 @@ export const useStore = create<AppStore>((set, get) => ({
         }
       }
 
-      // ── Step 2: enrichir le contexte avec les signaux d'humeur ───────────
-      // Notes confuses récentes (≤30 jours) — lacunes potentielles
+      // ── Step 2: notes où l'élève a noté se sentir confus (contexte brut) ─
+      // Pas de scoring, pas de seuil — l'IA s'en sert comme contexte si pertinent
       const recentConfused = get().notes
         .filter((n) => n.mood === 'confused' && (Date.now() - n.updatedAt.getTime()) < 30 * 86_400_000)
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
         .slice(0, 3);
 
-      // Résumé humeur des 14 derniers jours pour l'IA
-      const recentNotes14d = get().notes.filter(
-        (n) => (Date.now() - n.updatedAt.getTime()) < 14 * 86_400_000
-      );
-      const moodSummary = recentNotes14d.reduce<Record<string, number>>((acc, n) => {
-        if (n.mood) acc[n.mood] = (acc[n.mood] ?? 0) + 1;
-        return acc;
-      }, {});
-
-      // ── Step 3: call DeepSeek avec contexte + profil + humeur ────────────
+      // ── Step 3: call DeepSeek avec contexte + profil + notes confuses ────
       const { userType, learningProfile } = get();
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -446,7 +437,6 @@ export const useStore = create<AppStore>((set, get) => ({
               subject: n.subject,
               content: n.content.slice(0, 200),
             })),
-            moodSummary,  // { confused: 3, focused: 5, … }
           },
         }),
       });

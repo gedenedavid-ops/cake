@@ -51,9 +51,6 @@ function NodePanel({
   }, {});
   const dominantMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] as Mood | undefined;
 
-  // Notes avec humeur "confus" → lacunes potentielles
-  const confusedNotes = relatedNotes.filter((n) => n.mood === 'confused');
-
   const subjectCfg = nodeType === 'subject'
     ? SUBJECT_CONFIG[nodeId as Subject]
     : null;
@@ -132,16 +129,6 @@ function NodePanel({
             </div>
           )}
         </div>
-
-        {/* Lacunes potentielles */}
-        {confusedNotes.length > 0 && (
-          <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-            <span className="text-sm flex-shrink-0">😕</span>
-            <p className="text-[11px] text-amber-700 leading-snug">
-              {confusedNotes.length} note{confusedNotes.length > 1 ? 's' : ''} marquée{confusedNotes.length > 1 ? 's' : ''} comme <strong>confuse{confusedNotes.length > 1 ? 's' : ''}</strong> — Cake peut t'aider à clarifier.
-            </p>
-          </div>
-        )}
 
         {lastNote && (
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[#9B9590]">

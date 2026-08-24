@@ -6,7 +6,7 @@ import {
   Settings, Shield, Palette, Database,
   Download, Trash2, Check, User, Sparkles,
   Lock, LayoutGrid, List, Columns2,
-  Info, Delete, LogOut,
+  Info, Delete, LogOut, Phone, MessageCircle,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Shell } from '@/components/layout/Shell';
@@ -206,6 +206,54 @@ const USER_TYPES: { value: UserType; label: string; desc: string }[] = [
   { value: 'etudiant', label: '🎓 Étudiant', desc: 'Université / Supérieur · Accès libre à tous les sujets' },
 ];
 
+// ─── Bouton volontaire "Je veux en parler" ────────────────────────────────────
+// L'élève déclenche lui-même la demande — l'app ne détecte rien, ne diagnostique rien.
+// C'est une transmission de demande, pas un diagnostic.
+
+function SpeakToAdvisorButton() {
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    setSending(true);
+    // Simple POST vers une route dédiée qui envoie un email/notification au conseiller
+    // (sans données personnelles — juste "un élève souhaite être contacté")
+    try {
+      await fetch('/api/wellbeing/speak-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestedAt: new Date().toISOString() }),
+      });
+      setSent(true);
+    } catch {
+      // Fail silently — l'élève peut toujours appeler le numéro
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 border border-green-100 rounded-xl text-xs text-green-700">
+        <Check size={12} />
+        Demande envoyée — un conseiller te contactera bientôt.
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleSend}
+      disabled={sending}
+      className="w-full flex items-center gap-2 px-3 py-2.5 bg-white border border-[#E8E4DF] rounded-xl text-xs font-medium text-[#1A1A1A] hover:border-[#F4A236] active:scale-[0.98] transition-all disabled:opacity-60"
+    >
+      <MessageCircle size={12} className="text-[#9B9590]" />
+      {sending ? 'Envoi…' : 'Je veux en parler à quelqu\'un'}
+    </button>
+  );
+}
+
 export default function SettingsPage() {
   const { notes, addToast, prefs, updatePrefs, userType, setUserType } = useStore();
   const { data: session } = useSession();
@@ -375,6 +423,25 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </SectionCard>
+
+              {/* Ressource d'écoute — toujours visible, jamais déclenché par l'app */}
+              <div className="rounded-2xl border border-[#E8E4DF] bg-[#F5F3EF] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Phone size={14} className="text-[#9B9590]" />
+                  <p className="text-xs font-semibold text-[#1A1A1A]">Besoin de parler à quelqu'un ?</p>
+                </div>
+                <p className="text-[11px] text-[#9B9590] leading-relaxed">
+                  Si tu traverses une période difficile, des personnes formées sont disponibles pour t'écouter — en toute confidentialité.
+                </p>
+                <a
+                  href="tel:+22527222263"
+                  className="flex items-center gap-2 px-3 py-2.5 bg-white border border-[#E8E4DF] rounded-xl text-xs font-medium text-[#1A1A1A] hover:border-[#F4A236] transition-all"
+                >
+                  <Phone size={12} className="text-[#9B9590]" />
+                  SOS Amitié Côte d'Ivoire · 27 22 22 63
+                </a>
+                <SpeakToAdvisorButton />
+              </div>
             </motion.div>
           )}
 

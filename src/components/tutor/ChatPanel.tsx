@@ -140,18 +140,17 @@ const BASE_PROMPTS = [
   'Crée un plan de révision basé sur mes notes',
 ];
 
+// Prompts adaptés selon la dernière humeur renseignée — pas de seuil, pas de diagnostic
 function useDynamicPrompts(notes: import('@/types').Note[]): string[] {
   return useMemo(() => {
-    const cutoff = Date.now() - 14 * 86_400_000;
-    const recent = notes.filter((n) => n.mood && n.updatedAt.getTime() > cutoff);
-    const counts = recent.reduce<Record<string, number>>((acc, n) => {
-      acc[n.mood!] = (acc[n.mood!] ?? 0) + 1;
-      return acc;
-    }, {});
-    const total = recent.length;
+    // Humeur de la note la plus récente avec humeur renseignée
+    const lastMoodNote = [...notes]
+      .filter((n) => n.mood)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
+
     const prompts = [...BASE_PROMPTS];
 
-    if (total === 0) {
+    if (!lastMoodNote) {
       prompts.push(
         'Aide-moi à comprendre un concept difficile',
         'Explique-moi les thèmes clés de mes notes'
@@ -159,27 +158,27 @@ function useDynamicPrompts(notes: import('@/types').Note[]): string[] {
       return prompts;
     }
 
-    const confusedRatio  = (counts['confused']  ?? 0) / total;
-    const anxiousRatio   = (counts['anxious']   ?? 0) / total;
-    const motivatedCount = (counts['motivated'] ?? 0) + (counts['focused'] ?? 0);
-
-    if (confusedRatio > 0.35) {
-      // Beaucoup de confusion → aide ciblée
-      const confusedSubjects = [...new Set(
-        recent.filter((n) => n.mood === 'confused').map((n) => n.subject)
-      )].slice(0, 2);
-      prompts.unshift(`Aide-moi avec mes lacunes en ${confusedSubjects.join(' et ')} 😕`);
-      prompts.push('Explique-moi pas à pas un concept que je n\'ai pas compris');
-    } else if (anxiousRatio > 0.3) {
-      // Anxieux → rassurer, quiz doux
-      prompts.unshift('Fais-moi un petit quiz facile pour me rassurer avant l\'exam 😰');
-      prompts.push('Dis-moi ce que je maîtrise déjà bien dans mes notes');
-    } else if (motivatedCount / total > 0.5) {
-      // En forme → approfondissement
-      prompts.unshift('Je suis motivé — approfondissons un sujet difficile 🔥');
-      prompts.push('Crée-moi un quiz challengeant sur mes meilleures notes');
-    } else {
-      prompts.push('Aide-moi à comprendre un concept que j\'ai noté comme confus');
+    // Un seul prompt contextuel selon la dernière humeur enregistrée par l'élève
+    switch (lastMoodNote.mood) {
+      case 'confused':
+        prompts.push(`Explique-moi le cours "${lastMoodNote.title}" autrement`);
+        prompts.push('Fais-moi un quiz sur les points que j\'ai trouvé difficiles');
+        break;
+      case 'anxious':
+        prompts.push('Fais-moi un quiz rapide pour me préparer 😰');
+        prompts.push('Qu\'est-ce que je sais déjà bien dans mes notes ?');
+        break;
+      case 'motivated':
+      case 'focused':
+        prompts.push('Je suis en forme — approfondissons un sujet 🔥');
+        prompts.push('Crée-moi un quiz plus difficile sur mes notes');
+        break;
+      case 'tired':
+        prompts.push('Résume-moi l\'essentiel de mes notes en quelques points');
+        prompts.push('Qu\'est-ce que je dois absolument retenir pour l\'exam ?');
+        break;
+      default:
+        prompts.push('Aide-moi à comprendre un concept de mes notes');
     }
 
     return prompts.slice(0, 6);
@@ -444,6 +443,16 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
           >
             <RotateCcw size={9} /> Effacer
           </button>
+        </div>
+
+        {/* Lien d'écoute permanent — toujours visible, jamais déclenché par l'app */}
+        <div className="mt-2 pt-2 border-t border-[#F0ECE8] flex items-center justify-center gap-1.5">
+          <a
+            href="tel:+22527222263"
+            className="text-[9px] text-[#C8C4BE] hover:text-[#9B9590] transition-colors"
+          >
+            Besoin d'aide ? SOS Amitié CI · 27 22 22 63
+          </a>
         </div>
       </div>
     </div>

@@ -171,36 +171,19 @@ export async function POST(request: Request) {
       systemContent += `\n--- FIN DU PROFIL ---`;
     }
 
-    // Injecter les signaux d'humeur
+    // Injecter les notes récentes marquées "confus" pour que l'IA s'y réfère si besoin
+    // Pas de scoring, pas de seuil, pas de jugement — l'IA utilise ça comme contexte brut
     if (moodSignal) {
-      const { recentConfused, moodSummary } = moodSignal as {
+      const { recentConfused } = moodSignal as {
         recentConfused: { title: string; subject: string; content: string }[];
         moodSummary: Record<string, number>;
       };
-
-      const totalMoods = Object.values(moodSummary).reduce((s, v) => s + v, 0);
-      if (totalMoods > 0) {
-        const dominant = Object.entries(moodSummary).sort((a, b) => b[1] - a[1])[0];
-        const confusedRatio = (moodSummary['confused'] ?? 0) / totalMoods;
-
-        systemContent += `\n\n--- ÉTAT ÉMOTIONNEL RÉCENT DE L'APPRENANT (14 derniers jours) ---`;
-        systemContent += `\nHumeur dominante : ${dominant[0]} (${dominant[1]} notes)`;
-        if (confusedRatio > 0.4) {
-          systemContent += `\n⚠️ L'apprenant est souvent CONFUS (${Math.round(confusedRatio * 100)}% des notes). Sois particulièrement patient, décompose tes explications en petites étapes, et valide chaque étape avant de continuer.`;
-        } else if (moodSummary['motivated'] || moodSummary['focused']) {
-          systemContent += `\nL'apprenant est en bonne forme (motivé/concentré). Tu peux aller plus loin dans les détails et les nuances.`;
-        } else if (moodSummary['anxious'] || moodSummary['tired']) {
-          systemContent += `\nL'apprenant semble fatigué ou anxieux. Privilégie les encouragements, les petites victoires et un rythme doux.`;
-        }
-        systemContent += `\n--- FIN DE L'ÉTAT ÉMOTIONNEL ---`;
-      }
-
       if (recentConfused.length > 0) {
-        systemContent += `\n\n--- NOTES MARQUÉES CONFUSES (priorité d'aide) ---\n`;
+        systemContent += `\n\n--- NOTES OÙ L'ÉLÈVE A NOTÉ SE SENTIR CONFUS ---\n`;
         systemContent += recentConfused.map((n) =>
           `[${n.subject}] ${n.title} : ${n.content}`
         ).join('\n---\n');
-        systemContent += `\n--- FIN DES NOTES CONFUSES ---`;
+        systemContent += `\n--- FIN ---`;
       }
     }
 
