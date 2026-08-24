@@ -413,15 +413,8 @@ export const useStore = create<AppStore>((set, get) => ({
         }
       }
 
-      // ── Step 2: notes où l'élève a noté se sentir confus (contexte brut) ─
-      // Pas de scoring, pas de seuil — l'IA s'en sert comme contexte si pertinent
-      const recentConfused = get().notes
-        .filter((n) => n.mood === 'confused' && (Date.now() - n.updatedAt.getTime()) < 30 * 86_400_000)
-        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-        .slice(0, 3);
-
-      // ── Step 3: call DeepSeek avec contexte + profil + notes confuses ────
-      const { userType, learningProfile } = get();
+      // ── Step 2: call DeepSeek avec contexte ──────────────────────────────
+      const { userType } = get();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -430,14 +423,6 @@ export const useStore = create<AppStore>((set, get) => ({
           query: content,
           context: ragResults,
           userType,
-          learningProfile,
-          moodSignal: {
-            recentConfused: recentConfused.map((n) => ({
-              title: n.title,
-              subject: n.subject,
-              content: n.content.slice(0, 200),
-            })),
-          },
         }),
       });
 

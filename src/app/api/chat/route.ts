@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
@@ -134,17 +133,12 @@ Sois factuel, bref, et utile pour la prochaine session.`;
 // ─── POST /api/chat ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const session = await auth();
-
   try {
     const {
       messages,
       context,       // notes perso (SearchResult[]) depuis le store
       query,
       userType = 'eleve',
-      learningProfile,
-      pastSummaries,  // résumés des sessions précédentes (optionnel)
-      moodSignal,    // { recentConfused[], moodSummary{} }
     } = await request.json();
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -158,41 +152,6 @@ export async function POST(request: Request) {
     // ── 1. Construire le system prompt selon le profil ────────────────────────
     const addendum = userType === 'etudiant' ? ETUDIANT_ADDENDUM : ELEVE_ADDENDUM;
     let systemContent = BASE_PROMPT + addendum;
-
-    // Injecter le profil d'apprentissage si disponible
-    if (learningProfile?.weakSubjects?.length > 0 || learningProfile?.studiedTopics?.length > 0) {
-      systemContent += `\n\n--- PROFIL DE L'APPRENANT ---`;
-      if (learningProfile.weakSubjects?.length > 0) {
-        systemContent += `\nMatières en difficulté : ${learningProfile.weakSubjects.join(', ')}`;
-      }
-      if (learningProfile.studiedTopics?.length > 0) {
-        systemContent += `\nSujets déjà abordés : ${learningProfile.studiedTopics.slice(-10).join(', ')}`;
-      }
-      systemContent += `\n--- FIN DU PROFIL ---`;
-    }
-
-    // Injecter les notes récentes marquées "confus" pour que l'IA s'y réfère si besoin
-    // Pas de scoring, pas de seuil, pas de jugement — l'IA utilise ça comme contexte brut
-    if (moodSignal) {
-      const { recentConfused } = moodSignal as {
-        recentConfused: { title: string; subject: string; content: string }[];
-        moodSummary: Record<string, number>;
-      };
-      if (recentConfused.length > 0) {
-        systemContent += `\n\n--- NOTES OÙ L'ÉLÈVE A NOTÉ SE SENTIR CONFUS ---\n`;
-        systemContent += recentConfused.map((n) =>
-          `[${n.subject}] ${n.title} : ${n.content}`
-        ).join('\n---\n');
-        systemContent += `\n--- FIN ---`;
-      }
-    }
-
-    // Injecter les résumés des sessions passées (mémoire longue durée)
-    if (pastSummaries?.length > 0) {
-      systemContent += `\n\n--- RÉSUMÉS DES SESSIONS PRÉCÉDENTES ---\n`;
-      systemContent += (pastSummaries as string[]).slice(-3).join('\n\n---\n');
-      systemContent += `\n--- FIN DES RÉSUMÉS ---`;
-    }
 
     // ── 2. Notes personnelles de l'élève ─────────────────────────────────────
     if (context && context.length > 0) {
@@ -259,21 +218,6 @@ export async function POST(request: Request) {
     if (messages.length > 12 && messages.length % 8 === 0) {
       // Déclencher le résumé tous les 8 messages après le seuil de 12
       sessionSummary = await generateSessionSummary(messages, apiKey).catch(() => undefined);
-    }
-
-    // ── 6. Mettre à jour le profil si connecté (studiedTopics) ────────────────
-    if (session?.user?.id && query) {
-      // Extraire le sujet de la conversation depuis le contexte notes (best-effort)
-      const topNote = context?.[0]?.payload;
-      if (topNote?.subject) {
-        fetch(`${process.env.NEXTAUTH_URL ?? ''}/api/user/profile`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studiedTopics: [topNote.subject],   // l'API fera un $push côté serveur
-          }),
-        }).catch(() => {});
-      }
     }
 
     return NextResponse.json({
