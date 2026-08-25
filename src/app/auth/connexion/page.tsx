@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn } from 'next-auth/react'; // toujours utilisé pour email/password
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Loader2, Mail, Lock, User, Sparkles } from 'lucide-react';
@@ -36,15 +36,13 @@ function AuthForm() {
   const [userType, setUserType]   = useState<UserType>('eleve');
   const [showPwd, setShowPwd]     = useState(false);
   const [loading, setLoading]     = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]         = useState('');
+  const [googleSoon, setGoogleSoon] = useState(false);
 
   // ── Connexion OAuth Google ───────────────────────────────────────────────────
-  const handleGoogle = async () => {
-    setError('');
-    setGoogleLoading(true);
-    await signIn('google', { callbackUrl });
-    // La page se redirige — pas besoin de reset le loading
+  const handleGoogle = () => {
+    setGoogleSoon(true);
+    setTimeout(() => setGoogleSoon(false), 3000);
   };
 
   // ── Connexion / Inscription email + mot de passe ────────────────────────────
@@ -130,15 +128,25 @@ function AuthForm() {
           <div className="mb-5">
             <button
               onClick={handleGoogle}
-              disabled={googleLoading || loading}
+              disabled={loading}
               className="w-full flex items-center justify-center gap-3 py-3 bg-white border border-[#E8E4DF] rounded-xl text-sm font-medium text-[#1A1A1A] hover:bg-[#F5F3EF] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {googleLoading
-                ? <Loader2 size={16} className="animate-spin text-[#9B9590]" />
-                : <GoogleIcon />
-              }
+              <GoogleIcon />
               Continuer avec Google
             </button>
+            <AnimatePresence>
+              {googleSoon && (
+                <motion.p
+                  key="google-soon"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="text-xs text-center text-[#F4A236] font-medium mt-2"
+                >
+                  Bientôt disponible ✨
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Séparateur */}
