@@ -3,13 +3,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Plus, Hash, Lock, Unlock, Pin, Image as ImageIcon,
+  X, Lock, Unlock, Pin,
   AlignLeft, Tag, Smile, Palette, ChevronDown,
+  Sparkles, GitCompare, Pencil, BookPlus, Loader2, ChevronUp,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, generateId, countWords, estimateReadTime, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import type { Subject, Mood, NoteFormData, NoteTag } from '@/types';
+
+// ─── Types IA ─────────────────────────────────────────────────────────────────
+
+type AnalyzeMode = 'compare' | 'correct' | 'complete';
+type AISuggestion = { mode: AnalyzeMode; result: string } | null;
 
 const SUBJECTS = Object.keys(SUBJECT_CONFIG) as Subject[];
 const MOODS = Object.keys(MOOD_CONFIG) as Mood[];
@@ -37,6 +43,10 @@ export function NoteEditor() {
   const [showSubjectMenu, setShowSubjectMenu] = useState(false);
   const [showMoodMenu, setShowMoodMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
+
+  // ── IA inline ──────────────────────────────────────────────────────────────
+  const [aiLoading, setAiLoading] = useState<AnalyzeMode | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<AISuggestion>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -71,6 +81,34 @@ export function NoteEditor() {
     setTags((prev) => [...prev, { id: generateId(), label, color: '#F5F3EF' }]);
     setTagInput('');
   }, [tagInput, tags]);
+
+  // ── Analyse IA ─────────────────────────────────────────────────────────────
+  const handleAnalyze = useCallback(async (mode: AnalyzeMode) => {
+    if (!existingNote?.id) {
+      addToast({ type: 'warning', message: 'Sauvegarde la note d\'abord pour l\'analyser.' });
+      return;
+    }
+    if (!content.trim()) {
+      addToast({ type: 'warning', message: 'La note est vide, rien à analyser.' });
+      return;
+    }
+    setAiLoading(mode);
+    setAiSuggestion(null);
+    try {
+      const res = await fetch(`/api/notes/${existingNote.id}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erreur');
+      setAiSuggestion({ mode, result: data.result });
+    } catch {
+      addToast({ type: 'error', message: 'L\'analyse IA a échoué. Réessaie.' });
+    } finally {
+      setAiLoading(null);
+    }
+  }, [existingNote?.id, content, addToast]);
 
   const handleSave = () => {
     if (!title.trim() && !content.trim()) {
@@ -129,7 +167,7 @@ export function NoteEditor() {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Toolbar */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#E8E4DF] flex-shrink-0">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#E8E4DF] flex-shrink-0 flex-wrap">
             {/* Subject Picker */}
             <div className="relative">
               <button
@@ -256,6 +294,40 @@ export function NoteEditor() {
             </button>
           </div>
 
+          {/* Barre IA — visible uniquement en mode édition d'une note existante */}
+          {existingNote && (
+            <div className="flex items-center gap-1.5 px-4 py-2 bg-[#FDFAF5] border-b border-[#E8E4DF] flex-shrink-0">
+              <Sparkles size={11} className="text-[#F4A236] flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-[#9B9590] mr-1">IA</span>
+              {(
+                [
+                  { mode: 'compare'  as AnalyzeMode, icon: GitCompare, label: 'Comparer au programme' },
+                  { mode: 'correct'  as AnalyzeMode, icon: Pencil,     label: 'Corriger l\'écrit'    },
+                  { mode: 'complete' as AnalyzeMode, icon: BookPlus,   label: 'Compléter la note'    },
+                ] as const
+              ).map(({ mode, icon: Icon, label }) => (
+                <button
+                  key={mode}
+                  onClick={() => handleAnalyze(mode)}
+                  disabled={!!aiLoading}
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-medium transition-all',
+                    aiLoading === mode
+                      ? 'bg-[#F4A236] text-white'
+                      : 'bg-white border border-[#E8E4DF] text-[#57514C] hover:border-[#F4A236] hover:text-[#F4A236]',
+                    !!aiLoading && aiLoading !== mode && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {aiLoading === mode
+                    ? <Loader2 size={10} className="animate-spin" />
+                    : <Icon size={10} />
+                  }
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Title */}
           <div className="px-5 pt-4">
             <input
@@ -272,11 +344,57 @@ export function NoteEditor() {
             <textarea
               ref={textareaRef}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => { setContent(e.target.value); setAiSuggestion(null); }}
               placeholder="Start writing… Use this space to capture your thoughts, lessons, questions, or ideas. There's no wrong way to take notes."
               className="w-full h-full min-h-[200px] resize-none text-[#1A1A1A] placeholder-[#C8C4BE] bg-transparent text-sm leading-relaxed focus:outline-none note-content"
             />
           </div>
+
+          {/* Panneau résultat IA */}
+          <AnimatePresence>
+            {aiSuggestion && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="border-t border-[#E8E4DF] bg-[#FDFAF5] overflow-hidden flex-shrink-0"
+              >
+                <div className="px-5 py-3 max-h-64 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-semibold text-[#F4A236] uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles size={10} />
+                      {aiSuggestion.mode === 'compare'  && 'Comparaison au programme'}
+                      {aiSuggestion.mode === 'correct'  && 'Correction de l\'écrit'}
+                      {aiSuggestion.mode === 'complete' && 'Compléments suggérés'}
+                    </span>
+                    <button
+                      onClick={() => setAiSuggestion(null)}
+                      className="p-1 rounded-lg text-[#9B9590] hover:text-[#1A1A1A] hover:bg-[#EDE9E3] transition-colors"
+                    >
+                      <ChevronUp size={12} />
+                    </button>
+                  </div>
+                  <div className="text-xs text-[#1A1A1A] leading-relaxed whitespace-pre-wrap prose-sm">
+                    {aiSuggestion.result}
+                  </div>
+                  {aiSuggestion.mode === 'complete' && (
+                    <button
+                      onClick={() => {
+                        const sep = '\n\n---\n';
+                        setContent((c) => c + sep + aiSuggestion.result);
+                        setAiSuggestion(null);
+                        addToast({ type: 'success', message: 'Compléments ajoutés à la note ✓' });
+                      }}
+                      className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-[#F4A236] text-white rounded-xl text-[11px] font-semibold hover:bg-[#EAA240] transition-colors"
+                    >
+                      <BookPlus size={11} />
+                      Ajouter à ma note
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Tags row */}
           <div className="px-5 py-2 border-t border-[#F5F3EF] flex flex-wrap items-center gap-1.5">

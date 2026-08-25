@@ -295,7 +295,7 @@ export function KnowledgeGraph({ onNodeClick, showAllNotes = true }: KnowledgeGr
     const handleFilterChange = (e: Event) => {
       updateFilterStyles(((e as CustomEvent).detail as { nodeId: string }).nodeId);
     };
-    svgRef.current?.addEventListener('cake:filter', handleFilterChange);
+    svgRef.current?.addEventListener('binlinpad:filter', handleFilterChange);
 
     // ── Clic nœud ──────────────────────────────────────────────────────────
     nodeGroup.on('click', (event, d) => {
@@ -359,7 +359,7 @@ export function KnowledgeGraph({ onNodeClick, showAllNotes = true }: KnowledgeGr
 
     return () => {
       simulation.stop();
-      svgRef.current?.removeEventListener('cake:filter', handleFilterChange);
+      svgRef.current?.removeEventListener('binlinpad:filter', handleFilterChange);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, showAllNotes, buildGraphData, setGraphFilter, onNodeClick]);

@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, Sparkles, BookOpen, RotateCcw, ChevronDown,
-  Plus, MessageSquare, Loader2, User,
+  Send, Sparkles, BookOpen, Trash2, ChevronDown,
+  Plus, MessageSquare, Loader2, User, RotateCcw,
 } from 'lucide-react';
 import { useStore, useActiveSession } from '@/store';
 import { cn, formatRelativeDate } from '@/lib/utils';
@@ -296,7 +296,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
             <Sparkles size={17} className="text-white" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur Cake</h2>
+            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur BinlinPad</h2>
               <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
                 <span className={cn(
                   'px-1.5 py-0.5 rounded-full font-semibold text-[9px]',
@@ -358,9 +358,9 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
                   <button
                     onClick={() => deleteSession(sess.id)}
                     className="p-1.5 rounded-lg text-[#C8C4BE] hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
-                    title="Supprimer"
+                    title="Supprimer cette conversation"
                   >
-                    <RotateCcw size={10} />
+                    <Trash2 size={10} />
                   </button>
                 </div>
               ))}
@@ -376,7 +376,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
             <div className="w-14 h-14 rounded-3xl bg-[#FDF0DC] flex items-center justify-center mb-4">
               <Sparkles size={24} className="text-[#F4A236]" />
             </div>
-            <h3 className="text-[#1A1A1A] font-semibold mb-1">Bonjour ! Je suis Cake 👋</h3>
+            <h3 className="text-[#1A1A1A] font-semibold mb-1">Bonjour ! Je suis BinlinPad 👋</h3>
             <p className="text-[#9B9590] text-sm max-w-xs mb-6">
               Ton tuteur IA personnel. Pose-moi des questions sur tes notes, demande un quiz ou aide-toi à comprendre un concept.
             </p>
@@ -434,14 +434,16 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
           <p className="text-[9px] text-[#C8C4BE]">Entrée pour envoyer · Maj+Entrée pour saut de ligne</p>
           <button
             onClick={() => {
-              const sess = useStore.getState().activeSessionId;
-              if (sess) useStore.setState((s) => ({
-                sessions: s.sessions.map((se) => se.id === sess ? { ...se, messages: [] } : se)
-              }));
+              const { activeSessionId, deleteSession, createSession } = useStore.getState();
+              if (activeSessionId) {
+                deleteSession(activeSessionId);
+                createSession();
+              }
             }}
-            className="text-[9px] text-[#C8C4BE] hover:text-[#9B9590] flex items-center gap-1 transition-colors"
+            className="text-[9px] text-[#C8C4BE] hover:text-red-400 flex items-center gap-1 transition-colors"
+            title="Supprimer la conversation et en démarrer une nouvelle"
           >
-            <RotateCcw size={9} /> Effacer
+            <RotateCcw size={9} /> Nouvelle conversation
           </button>
         </div>
 

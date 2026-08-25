@@ -48,6 +48,7 @@ type ChatSlice = {
 // ─── User Profile Slice ───────────────────────────────────────────────────────
 
 type UserProfileSlice = {
+  userId: string | null;
   userType: UserType;
   learningProfile: LearningProfile;
   profileLoaded: boolean;
@@ -69,7 +70,7 @@ export type UserPreferences = {
   language: 'en' | 'fr';
 };
 
-const PREFS_KEY = 'cake_prefs';
+const PREFS_KEY = 'binlinpad_prefs';
 
 const DEFAULT_PREFS: UserPreferences = {
   displayName: '',
@@ -321,11 +322,19 @@ export const useStore = create<AppStore>((set, get) => ({
         : s.activeSessionId,
     }));
     try {
-      await fetch('/api/chat/sessions', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: id }),
-      });
+      // Suppression MongoDB + vecteurs Qdrant en parallèle
+      await Promise.all([
+        fetch('/api/chat/sessions', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: id }),
+        }),
+        fetch('/api/chat/history', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: id }),
+        }),
+      ]);
     } catch {/* silencieux */}
   },
 
@@ -414,7 +423,7 @@ export const useStore = create<AppStore>((set, get) => ({
       }
 
       // ── Step 2: call DeepSeek avec contexte ──────────────────────────────
-      const { userType } = get();
+      const { userType, userId } = get();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -423,6 +432,7 @@ export const useStore = create<AppStore>((set, get) => ({
           query: content,
           context: ragResults,
           userType,
+          userId,
         }),
       });
 
@@ -460,6 +470,22 @@ export const useStore = create<AppStore>((set, get) => ({
         ),
         isAILoading: false,
       }));
+
+      // ── Indexation de l'échange dans Qdrant (mémoire longue durée) ───────
+      // Fire-and-forget — n'affecte pas l'UX si Qdrant est indisponible
+      if (userId) {
+        fetch('/api/chat/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            exchangeId: userMsg.id,
+            userMessage: content,
+            assistantMessage: assistantMsg.content,
+            timestamp: new Date().toISOString(),
+          }),
+        }).catch(() => {/* silencieux */});
+      }
 
       // ── Sauvegarde persistante (fire-and-forget) ──────────────────────────
       // N'envoyer sessionId que si c'est déjà un vrai id MongoDB (24 hex chars)
@@ -509,6 +535,7 @@ export const useStore = create<AppStore>((set, get) => ({
   setActiveSession: (id) => set({ activeSessionId: id }),
 
   // ── User Profile ────────────────────────────────────────────────────────────
+  userId: null,
   userType: 'eleve',
   learningProfile: { weakSubjects: [], studiedTopics: [], totalSessions: 0 },
   profileLoaded: false,
@@ -519,6 +546,7 @@ export const useStore = create<AppStore>((set, get) => ({
       if (!res.ok) return;
       const data = await res.json();
       set({
+        userId: data.user?._id?.toString() ?? data.user?.id ?? null,
         userType: data.user?.userType ?? 'eleve',
         learningProfile: data.user?.learningProfile ?? { weakSubjects: [], studiedTopics: [], totalSessions: 0 },
         profileLoaded: true,

@@ -272,7 +272,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cake-notes-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `binlinpad-notes-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     addToast({ type: 'success', message: `${notes.length} note${notes.length > 1 ? 's' : ''} exportée${notes.length > 1 ? 's' : ''}` });
@@ -281,7 +281,7 @@ export default function SettingsPage() {
   const handleClearAll = () => {
     if (!confirm('Supprimer toutes les notes ? Cette action est irréversible.')) return;
     useStore.setState({ notes: [] });
-    localStorage.removeItem('cake_notes');
+    localStorage.removeItem('binlinpad_notes');
     addToast({ type: 'info', message: 'Toutes les notes supprimées' });
   };
 

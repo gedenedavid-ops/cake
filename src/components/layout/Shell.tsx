@@ -14,9 +14,9 @@ export function Shell({ children }: ShellProps) {
   const accentColor = useStore((s) => s.prefs.accentColor);
 
   // Injecte la couleur d'accentuation comme variable CSS globale
-  // afin que les composants puissent utiliser var(--cake-accent)
+  // afin que les composants puissent utiliser var(--binlinpad-accent)
   useEffect(() => {
-    document.documentElement.style.setProperty('--cake-accent', accentColor);
+    document.documentElement.style.setProperty('--binlinpad-accent', accentColor);
   }, [accentColor]);
 
   return (

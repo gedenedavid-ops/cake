@@ -146,7 +146,7 @@ function NodePanel({
             className="w-full flex items-center gap-2 px-3 py-2.5 bg-[#F4A236] text-white rounded-xl text-xs font-semibold hover:bg-[#EAA240] active:scale-[0.98] transition-all"
           >
             <Sparkles size={13} />
-            Interroger Cake sur{nodeType === 'subject' ? ' cette matière' : ' ce sujet'}
+            Interroger BinlinPad sur{nodeType === 'subject' ? ' cette matière' : ' ce sujet'}
           </button>
         )}
         {nodeType === 'subject' && (

@@ -13,7 +13,7 @@ export async function GET() {
   await connectDB();
 
   const user = await User.findById(session.user.id)
-    .select('userType learningProfile name email image')
+    .select('_id userType learningProfile name email image')
     .lean();
 
   if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });

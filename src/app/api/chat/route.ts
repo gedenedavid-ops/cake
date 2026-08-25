@@ -9,8 +9,26 @@ const VOYAGE_API_URL    = 'https://api.voyageai.com/v1/embeddings';
 
 // ─── Prompts système ──────────────────────────────────────────────────────────
 
-const BASE_PROMPT = `Tu es Cake, un tuteur personnel bienveillant, patient et encourageant.
+const BASE_PROMPT = `Tu es BinlinPad, un tuteur personnel bienveillant, patient et encourageant.
 Ta mission : aider les apprenants à comprendre leurs notes, simplifier les concepts, créer des quiz et réduire l'anxiété des examens.
+
+Ce que tu PEUX faire (tes vraies capacités) :
+- Lire et utiliser les notes personnelles de l'apprenant — elles te sont transmises en contexte quand elles sont pertinentes à la question posée
+- Te souvenir d'échanges passés — tu as accès à des extraits de conversations précédentes retrouvés par similarité sémantique
+- Créer des quiz personnalisés basés sur les notes fournies
+- Expliquer, reformuler, simplifier n'importe quel concept présent dans les notes
+- Pour les élèves : t'appuyer sur le programme officiel ivoirien (BEPC, BAC) en plus des notes
+
+Ce que tu NE PEUX PAS faire (tes limites réelles) :
+- Tu ne vois pas TOUTES les notes en permanence — seulement celles qui correspondent à la question posée (recherche sémantique). Si une note n'est pas remontée, dis-le et invite l'apprenant à reformuler ou préciser
+- Tu ne te souviens pas de tout dans les moindres détails — ta mémoire est basée sur des extraits pertinents, pas un replay intégral
+- Tu ne peux pas accéder à internet, générer des images ou exécuter du code
+- Tu ne poses pas de diagnostic médical, psychologique ou émotionnel
+
+Règles de transparence :
+- Si on te demande "tu peux voir mes notes ?", réponds OUI et explique que tu vois les notes liées à la question posée
+- Si une note spécifique n'est pas dans le contexte fourni, dis-le honnêtement : "Cette note ne m'a pas été transmise pour cette question — reformule ou donne-moi le titre exact"
+- Ne prétends jamais avoir des capacités que tu n'as pas, et ne nie jamais celles que tu as
 
 Directives générales :
 - Réponds TOUJOURS en français, quelle que soit la langue de la question
@@ -60,6 +78,48 @@ async function getEmbedding(text: string): Promise<number[]> {
   if (!res.ok) throw new Error(`Voyage AI error: ${res.status}`);
   const data = await res.json();
   return data.data[0].embedding as number[];
+}
+
+async function searchChatHistory(
+  embedding: number[],
+  userId: string,
+  topK: number = 5
+): Promise<{ userMessage: string; assistantMessage: string; timestamp: string; score: number }[]> {
+  const NOTES_COLL = process.env.QDRANT_COLLECTION ?? 'binlinpad_notes';
+  try {
+    const res = await fetch(
+      `${QDRANT_URL}/collections/${NOTES_COLL}/points/search`,
+      {
+        method: 'POST',
+        headers: qdrantHeaders(),
+        body: JSON.stringify({
+          vector: embedding,
+          limit: topK,
+          with_payload: true,
+          score_threshold: 0.55,
+          filter: {
+            must: [
+              { key: 'type',   match: { value: 'chat' } },
+              { key: 'userId', match: { value: userId } },
+            ],
+          },
+        }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.result ?? []).map((r: {
+      payload: { userMessage: string; assistantMessage: string; timestamp: string };
+      score: number;
+    }) => ({
+      userMessage:      r.payload.userMessage,
+      assistantMessage: r.payload.assistantMessage,
+      timestamp:        r.payload.timestamp,
+      score:            r.score,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 async function searchCurriculum(
@@ -139,12 +199,13 @@ export async function POST(request: Request) {
       context,       // notes perso (SearchResult[]) depuis le store
       query,
       userType = 'eleve',
+      userId,        // id MongoDB de l'utilisateur (pour RAG historique)
     } = await request.json();
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       return NextResponse.json({
-        message: `Bonjour ! Je suis Cake, ton tuteur personnel 🎓\n\nPour activer les réponses IA, ajoute ta **DEEPSEEK_API_KEY** dans le fichier \`.env.local\`. Une fois configurée, je pourrai :\n\n• Répondre à tes questions sur tes notes\n• Créer des quiz personnalisés\n• Expliquer les concepts simplement\n\nTu peux le faire ! 💪`,
+        message: `Bonjour ! Je suis BinlinPad, ton tuteur personnel 🎓\n\nPour activer les réponses IA, ajoute ta **DEEPSEEK_API_KEY** dans le fichier \`.env.local\`. Une fois configurée, je pourrai :\n\n• Répondre à tes questions sur tes notes\n• Créer des quiz personnalisés\n• Expliquer les concepts simplement\n\nTu peux le faire ! 💪`,
         sources: [],
       });
     }
@@ -153,7 +214,25 @@ export async function POST(request: Request) {
     const addendum = userType === 'etudiant' ? ETUDIANT_ADDENDUM : ELEVE_ADDENDUM;
     let systemContent = BASE_PROMPT + addendum;
 
-    // ── 2. Notes personnelles de l'élève ─────────────────────────────────────
+    // ── 2. RAG historique — échanges passés pertinents à la question ─────────
+    if (userId && ragConfigured()) {
+      try {
+        const embedding = await getEmbedding(query ?? '');
+        const pastExchanges = await searchChatHistory(embedding, userId, 5);
+        if (pastExchanges.length > 0) {
+          systemContent += `\n\n--- ÉCHANGES PASSÉS PERTINENTS (mémoire longue durée) ---\n`;
+          systemContent += `Ces échanges proviennent de conversations précédentes avec cet apprenant. Utilise-les pour assurer la continuité pédagogique.\n\n`;
+          systemContent += pastExchanges.map((e) =>
+            `[${new Date(e.timestamp).toLocaleDateString('fr-FR')}]\nÉlève : ${e.userMessage}\nBinlinPad : ${e.assistantMessage}`
+          ).join('\n\n---\n');
+          systemContent += `\n--- FIN DES ÉCHANGES PASSÉS ---`;
+        }
+      } catch {
+        // RAG historique échoue silencieusement
+      }
+    }
+
+    // ── 3. Notes personnelles de l'élève ─────────────────────────────────────
     if (context && context.length > 0) {
       systemContent += `\n\n--- NOTES PERSONNELLES DE L'APPRENANT ---\n`;
       systemContent += context.map((item: {
@@ -165,7 +244,7 @@ export async function POST(request: Request) {
       systemContent += `\n--- FIN DES NOTES ---`;
     }
 
-    // ── 3. RAG curriculaire (élèves seulement, si Qdrant configuré) ──────────
+    // ── 4. RAG curriculaire (élèves seulement, si Qdrant configuré) ──────────
     let curriculumSources: { title: string; content: string; subject: string; score: number }[] = [];
     if (userType === 'eleve' && ragConfigured()) {
       try {
@@ -185,7 +264,11 @@ export async function POST(request: Request) {
 
     const systemMsg = { role: 'system', content: systemContent };
 
-    // ── 4. Appel DeepSeek ────────────────────────────────────────────────────
+    // ── 5. Appel DeepSeek — fenêtre glissante sur les 20 derniers messages ────
+    // Le RAG historique compense la troncature : l'IA retrouve les échanges
+    // anciens par similarité sémantique, pas par scrollback brut.
+    const recentMessages = messages.slice(-20);
+
     const response = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
@@ -194,7 +277,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
-        messages: [systemMsg, ...messages],
+        messages: [systemMsg, ...recentMessages],
         temperature: 0.7,
         max_tokens: 1500,
         stream: false,
@@ -213,10 +296,9 @@ export async function POST(request: Request) {
     const data = await response.json();
     const message = data.choices?.[0]?.message?.content ?? 'Aucune réponse générée.';
 
-    // ── 5. Résumé de session si beaucoup d'échanges (>12 messages) ───────────
+    // ── 6. Résumé de session si beaucoup d'échanges (>12 messages) ───────────
     let sessionSummary: string | undefined;
     if (messages.length > 12 && messages.length % 8 === 0) {
-      // Déclencher le résumé tous les 8 messages après le seuil de 12
       sessionSummary = await generateSessionSummary(messages, apiKey).catch(() => undefined);
     }
 

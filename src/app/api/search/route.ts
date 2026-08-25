@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 
 const QDRANT_URL       = process.env.QDRANT_URL ?? 'http://localhost:6333';
 const QDRANT_API_KEY   = process.env.QDRANT_API_KEY;
-const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'cake_notes';
+const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'binlinpad_notes';
 const VOYAGE_API_URL   = 'https://api.voyageai.com/v1/embeddings';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
