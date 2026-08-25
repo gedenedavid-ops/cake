@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, Sparkles, BookOpen, Trash2, ChevronDown,
+  Send, BookOpen, Trash2, ChevronDown,
   Plus, MessageSquare, Loader2, User, RotateCcw,
 } from 'lucide-react';
 import { useStore, useActiveSession } from '@/store';
@@ -196,13 +196,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     >
       {/* Avatar */}
       <div className={cn(
-        'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1',
+        'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1 text-[10px] font-semibold text-white select-none',
         isUser ? 'bg-[#1A1A1A]' : 'bg-[#F4A236]'
       )}>
-        {isUser
-          ? <User size={13} className="text-white" />
-          : <Sparkles size={13} className="text-white" />
-        }
+        {isUser ? <User size={13} className="text-white" /> : 'IA'}
       </div>
 
       {/* Bubble */}
@@ -292,11 +289,8 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E4DF] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-[#F4A236] flex items-center justify-center">
-            <Sparkles size={17} className="text-white" />
-          </div>
           <div>
-            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur BinlinPad</h2>
+            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur</h2>
               <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
                 <span className={cn(
                   'px-1.5 py-0.5 rounded-full font-semibold text-[9px]',
@@ -373,10 +367,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
         {!activeSession || activeSession.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-            <div className="w-14 h-14 rounded-3xl bg-[#FDF0DC] flex items-center justify-center mb-4">
-              <Sparkles size={24} className="text-[#F4A236]" />
-            </div>
-            <h3 className="text-[#1A1A1A] font-semibold mb-1">Bonjour ! Je suis BinlinPad 👋</h3>
+            <h3 className="text-[#1A1A1A] font-semibold mb-1">Bonjour 👋</h3>
             <p className="text-[#9B9590] text-sm max-w-xs mb-6">
               Ton tuteur IA personnel. Pose-moi des questions sur tes notes, demande un quiz ou aide-toi à comprendre un concept.
             </p>

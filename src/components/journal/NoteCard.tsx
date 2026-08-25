@@ -203,7 +203,7 @@ export function NoteCard({ note, onOpen, index = 0, listMode = false }: NoteCard
           'font-semibold text-sm leading-snug mb-1.5',
           note.color === 'dark' || note.color === 'ochre' ? 'text-white' : 'text-[#1A1A1A]'
         )}>
-          {note.title || 'Untitled note'}
+          {note.title || 'Sans titre'}
         </h3>
 
         {/* Content preview or lock screen */}
@@ -255,11 +255,11 @@ export function NoteCard({ note, onOpen, index = 0, listMode = false }: NoteCard
             <>
               <span className="flex items-center gap-1">
                 <BookOpen size={10} />
-                {note.wordCount} words
+                {note.wordCount} mot{note.wordCount > 1 ? 's' : ''}
               </span>
               <span className="flex items-center gap-1">
                 <Eye size={10} />
-                {note.readTime} min
+                {note.readTime} min lec.
               </span>
             </>
           )}

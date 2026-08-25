@@ -45,9 +45,14 @@ export function Sidebar() {
       className="hidden md:flex flex-col h-screen bg-white border-r border-[#E8E4DF] overflow-hidden flex-shrink-0 z-30"
     >
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b border-[#E8E4DF] flex-shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-[#F4A236] flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">C</span>
+      <div className="flex items-center h-14 px-3 border-b border-[#E8E4DF] flex-shrink-0 gap-2">
+        <div className="w-7 h-7 rounded-lg bg-[#F4A236] flex items-center justify-center flex-shrink-0">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="5" height="5" rx="1.5" fill="white" />
+            <rect x="8" y="1" width="5" height="5" rx="1.5" fill="white" opacity="0.7" />
+            <rect x="1" y="8" width="5" height="5" rx="1.5" fill="white" opacity="0.7" />
+            <rect x="8" y="8" width="5" height="5" rx="1.5" fill="white" />
+          </svg>
         </div>
         <AnimatePresence>
           {!sidebarCollapsed && (
@@ -56,7 +61,7 @@ export function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.15 }}
-              className="ml-3 font-semibold text-[#1A1A1A] text-lg whitespace-nowrap"
+              className="font-semibold text-[#1A1A1A] text-base whitespace-nowrap tracking-tight"
             >
               BinlinPad
             </motion.span>
@@ -64,10 +69,10 @@ export function Sidebar() {
         </AnimatePresence>
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="ml-auto p-1.5 rounded-lg text-[#9B9590] hover:text-[#1A1A1A] hover:bg-[#F5F3EF] transition-colors flex-shrink-0"
+          className="ml-auto p-1.5 rounded-lg text-[#C8C4BE] hover:text-[#1A1A1A] hover:bg-[#F5F3EF] transition-colors flex-shrink-0"
           aria-label="Toggle sidebar"
         >
-          {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </button>
       </div>
 
@@ -98,23 +103,23 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 w-full rounded-xl px-3 py-2.5 transition-all text-sm font-medium',
                 isActive
-                  ? 'bg-[#FDF0DC] text-[#F4A236]'
+                  ? 'bg-[#F5F3EF] text-[#1A1A1A]'
                   : 'text-[#9B9590] hover:bg-[#F5F3EF] hover:text-[#1A1A1A]',
                 sidebarCollapsed && 'justify-center px-2'
               )}
               aria-label={label}
               title={label}
             >
-              {/* Icône visible uniquement quand la sidebar est réduite */}
-              {sidebarCollapsed && <Icon size={18} className="flex-shrink-0" />}
+              <Icon
+                size={16}
+                className="flex-shrink-0"
+                strokeWidth={isActive ? 2.5 : 1.8}
+              />
               {!sidebarCollapsed && (
                 <span className="whitespace-nowrap">{label}</span>
               )}
               {isActive && !sidebarCollapsed && (
-                <motion.div
-                  layoutId="sidebar-indicator"
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#F4A236]"
-                />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#1A1A1A] flex-shrink-0" />
               )}
             </button>
           );

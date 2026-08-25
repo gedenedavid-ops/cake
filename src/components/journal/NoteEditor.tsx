@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Lock, Unlock, Pin,
   AlignLeft, Tag, Smile, Palette, ChevronDown,
-  Sparkles, GitCompare, Pencil, BookPlus, Loader2, ChevronUp,
+  GitCompare, Pencil, BookPlus, Loader2, ChevronUp,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, generateId, countWords, estimateReadTime, cn } from '@/lib/utils';
@@ -257,7 +257,7 @@ export function NoteEditor() {
                 'p-1.5 rounded-xl transition-colors',
                 isLocked ? 'bg-[#1A1A1A] text-white' : 'bg-[#F5F3EF] text-[#9B9590] hover:bg-[#EDE9E3]'
               )}
-              title={isLocked ? 'Unlock' : 'Lock note'}
+              title={isLocked ? 'Déverrouiller' : 'Verrouiller la note'}
             >
               {isLocked ? <Lock size={13} /> : <Unlock size={13} />}
             </button>
@@ -269,7 +269,7 @@ export function NoteEditor() {
                 'p-1.5 rounded-xl transition-colors',
                 isPinned ? 'bg-[#FDF0DC] text-[#F4A236]' : 'bg-[#F5F3EF] text-[#9B9590] hover:bg-[#EDE9E3]'
               )}
-              title={isPinned ? 'Unpin' : 'Pin note'}
+              title={isPinned ? 'Désépingler' : 'Épingler la note'}
             >
               <Pin size={13} />
             </button>
@@ -281,7 +281,7 @@ export function NoteEditor() {
                 'p-1.5 rounded-xl transition-colors ml-auto',
                 focusMode ? 'bg-[#1A1A1A] text-white' : 'bg-[#F5F3EF] text-[#9B9590] hover:bg-[#EDE9E3]'
               )}
-              title={focusMode ? 'Exit focus mode' : 'Focus mode'}
+              title={focusMode ? 'Quitter le mode focus' : 'Mode focus'}
             >
               <AlignLeft size={13} />
             </button>
@@ -297,7 +297,6 @@ export function NoteEditor() {
           {/* Barre IA — visible uniquement en mode édition d'une note existante */}
           {existingNote && (
             <div className="flex items-center gap-1.5 px-4 py-2 bg-[#FDFAF5] border-b border-[#E8E4DF] flex-shrink-0">
-              <Sparkles size={11} className="text-[#F4A236] flex-shrink-0" />
               <span className="text-[10px] font-semibold text-[#9B9590] mr-1">IA</span>
               {(
                 [
@@ -334,7 +333,7 @@ export function NoteEditor() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note title…"
+              placeholder="Titre de la note…"
               className="w-full text-xl font-bold text-[#1A1A1A] placeholder-[#C8C4BE] bg-transparent border-none focus:outline-none"
             />
           </div>
@@ -345,7 +344,7 @@ export function NoteEditor() {
               ref={textareaRef}
               value={content}
               onChange={(e) => { setContent(e.target.value); setAiSuggestion(null); }}
-              placeholder="Start writing… Use this space to capture your thoughts, lessons, questions, or ideas. There's no wrong way to take notes."
+              placeholder="Commence à écrire… Cours, idées, questions, réflexions. Il n'y a pas de mauvaise façon de prendre des notes."
               className="w-full h-full min-h-[200px] resize-none text-[#1A1A1A] placeholder-[#C8C4BE] bg-transparent text-sm leading-relaxed focus:outline-none note-content"
             />
           </div>
@@ -362,7 +361,6 @@ export function NoteEditor() {
                 <div className="px-5 py-3 max-h-64 overflow-y-auto">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-semibold text-[#F4A236] uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles size={10} />
                       {aiSuggestion.mode === 'compare'  && 'Comparaison au programme'}
                       {aiSuggestion.mode === 'correct'  && 'Correction de l\'écrit'}
                       {aiSuggestion.mode === 'complete' && 'Compléments suggérés'}
@@ -421,7 +419,7 @@ export function NoteEditor() {
                 if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); }
               }}
               onBlur={addTag}
-              placeholder="Add tag…"
+              placeholder="Ajouter un tag…"
               className="text-[11px] text-[#9B9590] placeholder-[#C8C4BE] bg-transparent w-20 focus:outline-none"
             />
           </div>
@@ -429,15 +427,15 @@ export function NoteEditor() {
           {/* Footer */}
           <div className="px-5 py-3 border-t border-[#E8E4DF] flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3 text-[11px] text-[#9B9590]">
-              <span>{wordCount} words</span>
-              <span>~{readTime} min read</span>
+              <span>{wordCount} mot{wordCount > 1 ? 's' : ''}</span>
+              <span>~{readTime} min lec.</span>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={closeEditor}>
-                Cancel
+                Annuler
               </Button>
               <Button variant="dark" size="sm" onClick={handleSave}>
-                {existingNote ? 'Update' : 'Save note'}
+                {existingNote ? 'Mettre à jour' : 'Enregistrer'}
               </Button>
             </div>
           </div>

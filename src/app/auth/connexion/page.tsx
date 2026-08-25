@@ -265,7 +265,7 @@ function AuthForm() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || googleLoading}
+              disabled={loading}
               className="w-full py-3 bg-[#F4A236] text-white rounded-xl text-sm font-medium hover:bg-[#EAA240] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-1"
             >
               {loading

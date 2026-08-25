@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Settings, Shield, Palette, Database,
-  Download, Trash2, Check, User, Sparkles,
+  Shield, Palette, Database,
+  Download, Trash2, Check, User,
   Lock, LayoutGrid, List, Columns2,
   Info, Delete, LogOut, Phone, MessageCircle,
 } from 'lucide-react';
@@ -296,11 +296,8 @@ export default function SettingsPage() {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#1A1A1A] flex items-center gap-2">
-            <Settings size={22} className="text-[#F4A236]" />
-            Paramètres
-            </h1>
-            <p className="text-xs text-[#9B9590] mt-0.5">Personnalise ton expérience BinlinPad</p>
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Paramètres</h1>
+          <p className="text-xs text-[#9B9590] mt-0.5">Personnalise ton expérience BinlinPad</p>
         </div>
 
         {/* Tab bar */}
@@ -376,7 +373,7 @@ export default function SettingsPage() {
                 )}
               </SectionCard>
 
-              <SectionCard title="Tuteur IA" icon={Sparkles}>
+              <SectionCard title="Tuteur IA" icon={User}>
                 {/* Type d'utilisateur */}
                 <div>
                   <p className="text-sm font-medium text-[#1A1A1A] mb-2">Mon profil</p>
