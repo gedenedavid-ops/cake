@@ -6,9 +6,11 @@ import { connectDB } from '@/lib/db';
 import { User } from '@/models/User';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // NextAuth v5 utilise AUTH_SECRET / AUTH_URL
-  // On supporte aussi NEXTAUTH_SECRET / NEXTAUTH_URL pour compatibilité
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+
+  // Requis en production sur Vercel — NextAuth v5 beta rejette les hosts
+  // non explicitement approuvés (cause du AccessDenied sur callback Google)
+  trustHost: true,
 
   session: { strategy: 'jwt' },
 
