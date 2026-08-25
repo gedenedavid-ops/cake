@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-const QDRANT_URL        = process.env.QDRANT_URL ?? 'http://localhost:6333';
-const QDRANT_API_KEY    = process.env.QDRANT_API_KEY;
-const CURRICULUM_COLL   = process.env.QDRANT_CURRICULUM_COLLECTION ?? 'cours_ivoiriens';
-const VOYAGE_API_URL    = 'https://api.voyageai.com/v1/embeddings';
+const QDRANT_URL             = process.env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_API_KEY         = process.env.QDRANT_API_KEY;
+// Curriculum ivoirien — compte Qdrant séparé
+const CURRICULUM_URL         = process.env.QDRANT_CURRICULUM_URL ?? process.env.QDRANT_URL ?? 'http://localhost:6333';
+const CURRICULUM_API_KEY     = process.env.QDRANT_CURRICULUM_API_KEY ?? process.env.QDRANT_API_KEY;
+const CURRICULUM_COLL        = process.env.QDRANT_CURRICULUM_COLLECTION ?? 'cours_ivoiriens';
+const VOYAGE_API_URL         = 'https://api.voyageai.com/v1/embeddings';
 
 // ─── Prompts système ──────────────────────────────────────────────────────────
 
@@ -59,6 +62,12 @@ Tu t'adresses à un ÉTUDIANT du supérieur (université, BTS, grandes écoles�
 function qdrantHeaders(): HeadersInit {
   const h: HeadersInit = { 'Content-Type': 'application/json' };
   if (QDRANT_API_KEY) h['api-key'] = QDRANT_API_KEY;
+  return h;
+}
+
+function curriculumHeaders(): HeadersInit {
+  const h: HeadersInit = { 'Content-Type': 'application/json' };
+  if (CURRICULUM_API_KEY) h['api-key'] = CURRICULUM_API_KEY;
   return h;
 }
 
@@ -128,10 +137,10 @@ async function searchCurriculum(
 ): Promise<{ title: string; content: string; subject: string; score: number }[]> {
   try {
     const res = await fetch(
-      `${QDRANT_URL}/collections/${CURRICULUM_COLL}/points/search`,
+      `${CURRICULUM_URL}/collections/${CURRICULUM_COLL}/points/search`,
       {
         method: 'POST',
-        headers: qdrantHeaders(),
+        headers: curriculumHeaders(),
         body: JSON.stringify({
           vector: embedding,
           limit: topK,
