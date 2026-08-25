@@ -277,9 +277,9 @@ function AuthForm() {
         {/* Mentions légales minimales */}
         <p className="text-[10px] text-[#C8C4BE] text-center mt-4 px-4">
           En continuant, tu acceptes nos{' '}
-          <span className="underline cursor-pointer hover:text-[#9B9590]">Conditions d'utilisation</span>
+          <a href="/legal" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#9B9590] transition-colors">Conditions d&apos;utilisation</a>
           {' '}et notre{' '}
-          <span className="underline cursor-pointer hover:text-[#9B9590]">Politique de confidentialité</span>.
+          <a href="/legal#donnees" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#9B9590] transition-colors">Politique de confidentialité</a>.
         </p>
       </div>
     </div>
