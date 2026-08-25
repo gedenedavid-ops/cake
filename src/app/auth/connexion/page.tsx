@@ -4,7 +4,8 @@ import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react'; // toujours utilisé pour email/password
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Loader2, Mail, Lock, User, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock, User } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { UserType } from '@/types';
 
@@ -92,8 +93,8 @@ function AuthForm() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center mb-8"
         >
-          <div className="w-14 h-14 rounded-2xl bg-[#F4A236] flex items-center justify-center mb-3 shadow-lg shadow-[#F4A23630]">
-            <Sparkles size={26} className="text-white" />
+          <div className="mb-3">
+            <Image src="/logo3d.svg" alt="BinlinPad" width={56} height={56} priority />
           </div>
           <h1 className="text-2xl font-bold text-[#1A1A1A]">BinlinPad</h1>
           <p className="text-xs text-[#9B9590] mt-1">Ton compagnon d'études personnel</p>
