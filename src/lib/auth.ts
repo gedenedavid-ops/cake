@@ -67,24 +67,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       // Pour Google : upsert l'utilisateur dans MongoDB
       try {
+        console.log('[signIn] provider:', account?.provider, '| email:', user.email);
         await connectDB();
+        console.log('[signIn] MongoDB connected');
         const existing = await User.findOne({ email: user.email! }).lean();
+        console.log('[signIn] existing user:', !!existing);
 
         if (!existing) {
           await User.create({
             name:         user.name ?? user.email!.split('@')[0],
             email:        user.email!.toLowerCase(),
-            passwordHash: '', // pas de mot de passe pour les comptes OAuth
+            passwordHash: '',
             image:        user.image ?? undefined,
           });
+          console.log('[signIn] new user created');
         } else if (!existing.image && user.image) {
-          // Met à jour l'avatar si manquant
           await User.updateOne({ email: user.email! }, { image: user.image });
         }
 
         return true;
       } catch (err) {
-        console.error('signIn callback error:', err);
+        console.error('[signIn] ERROR:', err);
         return false;
       }
     },
