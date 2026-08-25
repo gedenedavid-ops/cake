@@ -535,6 +535,21 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </SectionCard>
+
+              <SectionCard title="Mentions légales" icon={Shield}>
+                <p className="text-xs text-[#9B9590] leading-relaxed">
+                  Consulte nos Conditions Générales d&apos;Utilisation et notre Politique de Confidentialité
+                  pour comprendre comment tes données sont utilisées et protégées.
+                </p>
+                <a
+                  href="/legal"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-[#F4A236] hover:underline font-medium mt-1"
+                >
+                  Lire les mentions légales →
+                </a>
+              </SectionCard>
             </motion.div>
           )}
 
