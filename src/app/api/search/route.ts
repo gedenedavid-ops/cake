@@ -6,6 +6,12 @@ const QDRANT_API_KEY   = process.env.QDRANT_API_KEY;
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'binlinpad_notes';
 const VOYAGE_API_URL   = 'https://api.voyageai.com/v1/embeddings';
 
+// DEBUG TEMPORAIRE — à retirer après résolution
+console.log('[search] QDRANT_URL:', QDRANT_URL);
+console.log('[search] QDRANT_API_KEY length:', QDRANT_API_KEY?.length ?? 0);
+console.log('[search] QDRANT_API_KEY prefix:', QDRANT_API_KEY?.slice(0, 20) ?? 'MISSING');
+console.log('[search] QDRANT_COLLECTION:', QDRANT_COLLECTION);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function qdrantHeaders(): HeadersInit {
