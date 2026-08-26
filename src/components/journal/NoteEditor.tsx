@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, generateId, countWords, estimateReadTime, cn } from '@/lib/utils';
+import { renderMarkdown } from '@/lib/renderMarkdown';
 import { Button } from '@/components/ui/Button';
 import type { Subject, Mood, NoteFormData, NoteTag } from '@/types';
 
@@ -372,8 +373,8 @@ export function NoteEditor() {
                       <ChevronUp size={12} />
                     </button>
                   </div>
-                  <div className="text-xs text-[#1A1A1A] leading-relaxed whitespace-pre-wrap prose-sm">
-                    {aiSuggestion.result}
+                  <div className="text-xs text-[#1A1A1A] leading-relaxed space-y-0.5">
+                    {renderMarkdown(aiSuggestion.result)}
                   </div>
                   {aiSuggestion.mode === 'complete' && (
                     <button
