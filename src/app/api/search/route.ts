@@ -1,16 +1,27 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
-const QDRANT_URL       = process.env.QDRANT_URL ?? 'http://localhost:6333';
-const QDRANT_API_KEY   = process.env.QDRANT_API_KEY;
+const QDRANT_URL        = process.env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_API_KEY    = process.env.QDRANT_API_KEY;
 const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION ?? 'binlinpad_notes';
-const VOYAGE_API_URL   = 'https://api.voyageai.com/v1/embeddings';
+const VOYAGE_API_URL    = 'https://api.voyageai.com/v1/embeddings';
 
-// DEBUG TEMPORAIRE — à retirer après résolution
-console.log('[search] QDRANT_URL:', QDRANT_URL);
-console.log('[search] QDRANT_API_KEY length:', QDRANT_API_KEY?.length ?? 0);
-console.log('[search] QDRANT_API_KEY prefix:', QDRANT_API_KEY?.slice(0, 20) ?? 'MISSING');
-console.log('[search] QDRANT_COLLECTION:', QDRANT_COLLECTION);
+/**
+ * Convertit un ObjectId MongoDB (24 hex chars) en UUID v4-like valide pour Qdrant.
+ * Déterministe : le même noteId produit toujours le même UUID.
+ * Format : xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+ */
+function mongoIdToUUID(mongoId: string): string {
+  // Pad ou tronque à 32 hex chars
+  const hex = mongoId.replace(/-/g, '').padEnd(32, '0').slice(0, 32);
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    '4' + hex.slice(13, 16),          // version 4
+    (parseInt(hex.slice(16, 17), 16) & 0x3 | 0x8).toString(16) + hex.slice(17, 20), // variant
+    hex.slice(20, 32),
+  ].join('-');
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,6 +116,9 @@ export async function PUT(request: Request) {
     const text = `${title}\n${content}`;
     const embedding = await getEmbedding(text, 'document');
 
+    // Qdrant n'accepte que UUID ou entier — on dérive un UUID v5 depuis l'ObjectId
+    const qdrantId = mongoIdToUUID(noteId);
+
     const res = await fetch(
       `${QDRANT_URL}/collections/${QDRANT_COLLECTION}/points`,
       {
@@ -112,7 +126,7 @@ export async function PUT(request: Request) {
         headers: qdrantHeaders(),
         body: JSON.stringify({
           points: [{
-            id: noteId,
+            id: qdrantId,
             vector: embedding,
             payload: {
               noteId,
