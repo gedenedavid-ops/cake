@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Standalone output — requis pour Render (et compatible Vercel)
+  output: 'standalone',
+
   // PWA headers + security
   async headers() {
     return [

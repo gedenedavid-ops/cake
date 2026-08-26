@@ -5,114 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, X, SlidersHorizontal,
   BookOpen, TrendingUp, Zap, Clock,
-  LayoutGrid, List, Columns2, Smile,
+  LayoutGrid, List, Columns2,
 } from 'lucide-react';
 import { useStore, useFilteredNotes } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, cn } from '@/lib/utils';
 import { NoteCard } from '@/components/journal/NoteCard';
 import { NoteEditor } from '@/components/journal/NoteEditor';
 import { PinLockModal } from '@/components/journal/PinLock';
+import { MoodDashboard } from '@/components/journal/MoodDashboard';
 import { Button } from '@/components/ui/Button';
 import type { Note, Subject, Mood } from '@/types';
 import type { NoteLayout } from '@/store';
-
-// ─── Journal d'humeur — vue personnelle, purement descriptive ─────────────────
-
-function MoodDashboard({ notes }: { notes: Note[] }) {
-  // Notes des 14 derniers jours ayant une humeur renseignée
-  const recent = useMemo(() => {
-    const cutoff = Date.now() - 14 * 86_400_000;
-    return notes.filter((n) => n.mood && n.updatedAt.getTime() > cutoff);
-  }, [notes]);
-
-  if (recent.length < 2) return null;
-
-  // Comptage brut par humeur — affiché tel quel, sans interprétation
-  const counts = recent.reduce<Record<string, number>>((acc, n) => {
-    acc[n.mood!] = (acc[n.mood!] ?? 0) + 1;
-    return acc;
-  }, {});
-  const total = recent.length;
-
-  // Courbe emoji sur les 7 derniers jours
-  const days = useMemo(() => {
-    const result: { label: string; emoji: string }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dayNotes = recent.filter((n) => {
-        const nd = new Date(n.updatedAt);
-        return nd.getDate() === d.getDate() && nd.getMonth() === d.getMonth();
-      });
-      const dominant = dayNotes.length > 0
-        ? Object.entries(
-            dayNotes.reduce<Record<string, number>>((a, n) => {
-              a[n.mood!] = (a[n.mood!] ?? 0) + 1; return a;
-            }, {})
-          ).sort((a, b) => b[1] - a[1])[0]?.[0]
-        : null;
-      result.push({
-        label: ['D', 'L', 'M', 'M', 'J', 'V', 'S'][d.getDay()],
-        emoji: dominant ? MOOD_CONFIG[dominant as Mood]?.emoji ?? '·' : '·',
-      });
-    }
-    return result;
-  }, [recent]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-[#E8E4DF] bg-white p-4 mb-6"
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Smile size={15} className="text-[#9B9590]" />
-        <p className="text-xs font-semibold text-[#1A1A1A]">Mon humeur — 14 derniers jours</p>
-        <span className="text-[10px] text-[#9B9590] ml-auto">{total} note{total > 1 ? 's' : ''}</span>
-      </div>
-
-      {/* Barre proportionnelle par humeur */}
-      <div className="flex gap-0.5 h-2 rounded-full overflow-hidden mb-3">
-        {(Object.entries(counts) as [Mood, number][])
-          .sort((a, b) => b[1] - a[1])
-          .map(([mood, count]) => (
-            <div
-              key={mood}
-              title={`${MOOD_CONFIG[mood]?.label} : ${count}`}
-              className="h-full transition-all"
-              style={{
-                width: `${(count / total) * 100}%`,
-                backgroundColor: MOOD_CONFIG[mood]?.color ?? '#E8E4DF',
-              }}
-            />
-          ))}
-      </div>
-
-      {/* Légende comptage */}
-      <div className="flex flex-wrap gap-3 mb-3">
-        {(Object.entries(counts) as [Mood, number][])
-          .sort((a, b) => b[1] - a[1])
-          .map(([mood, count]) => (
-            <span key={mood} className="flex items-center gap-1 text-[11px] text-[#57606a]">
-              <span>{MOOD_CONFIG[mood]?.emoji}</span>
-              <span>{MOOD_CONFIG[mood]?.label}</span>
-              <span className="font-semibold text-[#1A1A1A]">{count}</span>
-            </span>
-          ))}
-      </div>
-
-      {/* Courbe emoji 7 jours */}
-      <div className="flex gap-1">
-        {days.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-            <span className="text-sm leading-none">{d.emoji}</span>
-            <span className="text-[9px] text-[#C8C4BE]">{d.label}</span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
 
 const SUBJECTS = Object.keys(SUBJECT_CONFIG) as Subject[];
 const MOODS = Object.keys(MOOD_CONFIG) as Mood[];

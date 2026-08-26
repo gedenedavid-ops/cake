@@ -1,0 +1,63 @@
+services:
+  # ── Application web Next.js ───────────────────────────────────────────────────
+  - type: web
+    name: binlinpad
+    runtime: node
+    region: frankfurt          # europe — proche de l'Afrique de l'Ouest
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/auth/csrf
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXTAUTH_URL
+        sync: false            # à renseigner dans le dashboard Render après déploiement
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: binlinpad_notes
+      - key: QDRANT_CURRICULUM_URL
+        sync: false
+      - key: QDRANT_CURRICULUM_API_KEY
+        sync: false
+      - key: QDRANT_CURRICULUM_COLLECTION
+        value: cours_ivoiriens
+      - key: CRON_SECRET
+        sync: false
+
+  # ── Cron job — purge hebdo de l'historique chat > 12 mois ────────────────────
+  - type: cron
+    name: binlinpad-purge-history
+    runtime: node
+    region: frankfurt
+    plan: free
+    schedule: "0 3 * * 0"     # Chaque dimanche à 3h UTC
+    buildCommand: npm install && npm run build
+    startCommand: >
+      node -e "
+        fetch(process.env.APP_URL + '/api/cron/purge-history', {
+          headers: { 'authorization': 'Bearer ' + process.env.CRON_SECRET }
+        }).then(r => r.json()).then(console.log).catch(console.error)
+      "
+
+    envVars:
+      - key: APP_URL
+        sync: false            # URL publique de ton service Render, ex: https://binlinpad.onrender.com
+      - key: CRON_SECRET
+        sync: false

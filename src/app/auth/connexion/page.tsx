@@ -93,9 +93,28 @@ function AuthForm() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center mb-8"
         >
-          <div className="mb-3">
+          {/* Rotation 3D continue + fade-in */}
+          <motion.div
+            className="mb-3"
+            style={{ perspective: 400 }}
+            initial={{ opacity: 0, rotateY: -90 }}
+            animate={{
+              opacity: 1,
+              rotateY: [0, 18, 0, -18, 0],
+            }}
+            transition={{
+              opacity: { duration: 0.5, ease: 'easeOut' },
+              rotateY: {
+                delay: 0.4,
+                duration: 4,
+                ease: 'easeInOut',
+                repeat: Infinity,
+                repeatType: 'loop',
+              },
+            }}
+          >
             <Image src="/logo3d.svg" alt="BinlinPad" width={56} height={56} priority />
-          </div>
+          </motion.div>
           <h1 className="text-2xl font-bold text-[#1A1A1A]">BinlinPad</h1>
           <p className="text-xs text-[#9B9590] mt-1">Ton compagnon d'études personnel</p>
         </motion.div>
