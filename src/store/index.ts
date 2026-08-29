@@ -110,7 +110,8 @@ type UISlice = {
 
 type AppStore = NotesSlice & ChatSlice & UserProfileSlice & UISlice;
 
-const NOTES_KEY = 'binlinpad_notes';
+const NOTES_KEY     = 'binlinpad_notes';
+const LAST_SEEN_KEY = 'binlinpad_last_seen';
 
 // ─── RAG helpers (fire-and-forget, never block the UI) ────────────────────────
 
@@ -424,6 +425,11 @@ export const useStore = create<AppStore>((set, get) => ({
 
       // ── Step 2: call DeepSeek avec contexte ──────────────────────────────
       const { userType, userId } = get();
+
+      // Récupérer la date de dernière visite AVANT de la mettre à jour
+      const lastSeenAt = getFromStorage<string | null>(LAST_SEEN_KEY, null);
+      setToStorage(LAST_SEEN_KEY, new Date().toISOString());
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -433,6 +439,7 @@ export const useStore = create<AppStore>((set, get) => ({
           context: ragResults,
           userType,
           userId,
+          lastSeenAt,
         }),
       });
 
@@ -452,6 +459,7 @@ export const useStore = create<AppStore>((set, get) => ({
         timestamp: new Date(),
         sources: sources.length > 0 ? sources : data.sources,
         isLoading: false,
+        ...(data.timerSeconds ? { timerSeconds: data.timerSeconds } : {}),
       };
 
       const updatedSession = get().sessions.find((s) => s.id === sessionId);

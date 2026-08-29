@@ -9,6 +9,7 @@ import {
 import { useStore, useActiveSession } from '@/store';
 import { cn, formatRelativeDate } from '@/lib/utils';
 import { renderMarkdown } from '@/lib/renderMarkdown';
+import { ExerciseTimer } from './ExerciseTimer';
 import type { ChatMessage } from '@/types';
 
 const BASE_PROMPTS = [
@@ -62,7 +63,13 @@ function useDynamicPrompts(notes: import('@/types').Note[]): string[] {
   }, [notes]);
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  onTimerExpire,
+}: {
+  message: ChatMessage;
+  onTimerExpire?: (msgId: string) => void;
+}) {
   const isUser = message.role === 'user';
   return (
     <motion.div
@@ -94,6 +101,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               : 'bg-[#F5F3EF] text-[#1A1A1A] rounded-tl-sm space-y-0.5'
           )}>
             {isUser ? message.content : renderMarkdown(message.content)}
+
+            {/* Chronomètre — uniquement sur les messages IA avec timerSeconds */}
+            {!isUser && message.timerSeconds && onTimerExpire && (
+              <ExerciseTimer
+                durationSeconds={message.timerSeconds}
+                onExpire={() => onTimerExpire(message.id)}
+              />
+            )}
           </div>
         )}
 
@@ -141,6 +156,13 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeSession?.messages]);
+
+  // Déclenché par l'ExerciseTimer quand il arrive à 0
+  const handleTimerExpire = useCallback(async (msgId: string) => {
+    // On envoie un message système transparent pour que l'IA réagisse
+    void msgId; // l'id n'est pas utile pour l'envoi, mais garde la référence
+    await sendMessage('[TIMER_EXPIRED] Le temps imparti pour l\'exercice est écoulé.');
+  }, [sendMessage]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -264,7 +286,11 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
         ) : (
           <>
             {activeSession.messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onTimerExpire={handleTimerExpire}
+              />
             ))}
             <div ref={messagesEndRef} />
           </>

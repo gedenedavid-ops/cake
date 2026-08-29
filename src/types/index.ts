@@ -89,6 +89,8 @@ export type ChatMessage = {
   timestamp: Date;
   sources?: NoteSource[];
   isLoading?: boolean;
+  /** Durée en secondes du minuteur d'exercice — présent uniquement si l'IA a donné un exercice chronométré */
+  timerSeconds?: number;
 };
 
 export type NoteSource = {

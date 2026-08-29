@@ -41,7 +41,16 @@ Directives générales :
 - Garde tes réponses concises et digestes — évite les murs de texte
 - Félicite l'effort et les progrès, normalise la confusion comme une étape normale
 - Ne fais jamais sentir à l'apprenant qu'il est nul ou incapable
-- Termine tes réponses par une question de suivi douce ou un encouragement`;
+- Termine tes réponses par une question de suivi douce ou un encouragement
+
+MINUTEUR D'EXERCICE :
+Lorsque tu donnes un exercice avec un délai imparti (ex : "tu as 10 minutes pour résoudre…"), tu DOIS ajouter en toute fin de ta réponse, sur une ligne seule, le marqueur suivant :
+%%TIMER:NNN%%
+où NNN est le nombre de SECONDES correspondant au temps accordé. Exemples : 10 minutes → %%TIMER:600%% · 5 minutes → %%TIMER:300%% · 2 minutes → %%TIMER:120%%
+N'ajoute ce marqueur QUE lorsque tu donnes explicitement un exercice/défi avec un temps limite. N'utilise jamais ce marqueur pour une simple explication ou conversation.
+
+RÉACTION À LA FIN DU MINUTEUR :
+Si le message de l'apprenant est exactement "[TIMER_EXPIRED] Le temps imparti pour l'exercice est écoulé.", c'est que le chrono vient de sonner. Réagis naturellement : félicite-le d'avoir essayé, demande-lui de te partager sa réponse ou sa démarche, et indique que tu vas corriger ensemble. Sois encourageant, pas pressant.`;
 
 const ELEVE_ADDENDUM = `
 Tu t'adresses à un ÉLÈVE du système scolaire ivoirien (primaire / collège / lycée).
@@ -209,6 +218,8 @@ export async function POST(request: Request) {
       query,
       userType = 'eleve',
       userId,        // id MongoDB de l'utilisateur (pour RAG historique)
+
+      lastSeenAt,    // ISO string — dernière visite de l'utilisateur (envoyé par le client)
     } = await request.json();
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -222,6 +233,35 @@ export async function POST(request: Request) {
     // ── 1. Construire le system prompt selon le profil ────────────────────────
     const addendum = userType === 'etudiant' ? ETUDIANT_ADDENDUM : ELEVE_ADDENDUM;
     let systemContent = BASE_PROMPT + addendum;
+
+    // ── Conscience temporelle ─────────────────────────────────────────────────
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    let temporalCtx = `\n\n--- CONTEXTE TEMPOREL ---\nNous sommes le ${dateStr} à ${timeStr}.`;
+
+    if (lastSeenAt) {
+      const lastDate = new Date(lastSeenAt);
+      const diffMs   = now.getTime() - lastDate.getTime();
+      const diffDays = Math.floor(diffMs / 86_400_000);
+      if (diffDays === 0) {
+        temporalCtx += `\nL'apprenant était déjà là aujourd'hui.`;
+      } else if (diffDays === 1) {
+        temporalCtx += `\nL'apprenant était là hier.`;
+      } else if (diffDays < 7) {
+        temporalCtx += `\nL'apprenant était là il y a ${diffDays} jours.`;
+      } else if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7);
+        temporalCtx += `\nL'apprenant n'était pas là depuis ${weeks} semaine${weeks > 1 ? 's' : ''} — accueille-le chaleureusement et propose de faire un point rapide sur ce qu'on avait vu.`;
+      } else {
+        const months = Math.floor(diffDays / 30);
+        temporalCtx += `\nL'apprenant n'était pas là depuis ${months} mois — accueille-le chaleureusement, demande comment il va, et propose de reprendre depuis ses notes.`;
+      }
+    }
+    temporalCtx += `\n--- FIN CONTEXTE TEMPOREL ---`;
+    systemContent += temporalCtx;
 
     // ── 2. RAG historique — échanges passés pertinents à la question ─────────
     if (userId && ragConfigured()) {
@@ -303,7 +343,12 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    const message = data.choices?.[0]?.message?.content ?? 'Aucune réponse générée.';
+    const rawMessage: string = data.choices?.[0]?.message?.content ?? 'Aucune réponse générée.';
+
+    // ── Extraction du marqueur %%TIMER:NNN%% ──────────────────────────────────
+    const timerMatch = rawMessage.match(/%%TIMER:(\d+)%%/);
+    const timerSeconds = timerMatch ? parseInt(timerMatch[1], 10) : undefined;
+    const message = rawMessage.replace(/\n?%%TIMER:\d+%%/g, '').trimEnd();
 
     // ── 6. Résumé de session si beaucoup d'échanges (>12 messages) ───────────
     let sessionSummary: string | undefined;
@@ -316,6 +361,7 @@ export async function POST(request: Request) {
       sources: [],
       sessionSummary,
       curriculumUsed: curriculumSources.length > 0,
+      ...(timerSeconds ? { timerSeconds } : {}),
     });
 
   } catch (error) {
