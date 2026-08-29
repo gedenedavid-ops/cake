@@ -12,7 +12,7 @@ const CURRICULUM_API_KEY     = process.env.QDRANT_CURRICULUM_API_KEY ?? process.
 const CURRICULUM_COLL        = process.env.QDRANT_CURRICULUM_COLLECTION ?? 'cours_ivoiriens';
 const VOYAGE_API_URL    = 'https://api.voyageai.com/v1/embeddings';
 
-type AnalyzeMode = 'compare' | 'correct' | 'complete';
+type AnalyzeMode = 'compare' | 'correct' | 'complete' | 'flashcards' | 'exam';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -110,7 +110,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const { mode }: { mode: AnalyzeMode } = await request.json();
-  if (!['compare', 'correct', 'complete'].includes(mode)) {
+  if (!['compare', 'correct', 'complete', 'flashcards', 'exam'].includes(mode)) {
     return NextResponse.json({ error: 'Mode invalide' }, { status: 400 });
   }
 
@@ -124,7 +124,59 @@ export async function POST(request: Request, { params }: Params) {
   try {
     let result = '';
 
-    if (mode === 'correct') {
+    if (mode === 'flashcards') {
+      // ── Mode flashcards — extrait Q/R depuis la note ───────────────────────
+      const systemPrompt = `Tu es un tuteur expert en mémorisation active.
+À partir des notes fournies, génère entre 5 et 12 flashcards de révision sous ce format STRICT (une par ligne, sans numérotation) :
+Q: [question courte et précise]
+R: [réponse concise — 1 à 2 phrases max]
+
+Règles :
+- Couvre les concepts clés, définitions, formules, dates importantes
+- Les questions doivent être fermées (une bonne réponse possible)
+- Adapte la difficulté au niveau collège/lycée ivoirien
+- Aucun texte avant la première flashcard ni après la dernière`;
+
+      result = await callDeepSeek(systemPrompt, noteText, apiKey);
+
+    } else if (mode === 'exam') {
+      // ── Mode examen blanc ──────────────────────────────────────────────────
+      const ragConfigured = !!(process.env.VOYAGE_API_KEY && QDRANT_API_KEY);
+      let curriculumContext = '';
+      if (ragConfigured) {
+        const embedding = await getEmbedding(`${note.subject} ${note.title} ${note.content.slice(0, 300)}`);
+        const sources = await searchCurriculum(embedding, 4);
+        if (sources.length > 0) {
+          curriculumContext = sources.map((s) => `[${s.subject}] ${s.title}:\n${s.content.slice(0, 700)}`).join('\n\n---\n');
+        }
+      }
+      const systemPrompt = `Tu es un professeur du lycée ivoirien qui crée un devoir de type examen.
+${curriculumContext ? `Programme officiel de référence :\n${curriculumContext}\n\n` : ''}
+Génère un examen blanc complet basé sur la note fournie. Format :
+
+## 📝 Examen blanc — ${note.subject}
+
+**Durée recommandée :** [X minutes selon la longueur]
+**Barème total :** 20 points
+
+### Partie 1 — Questions de cours (X pts)
+[questions de connaissance directes, numérotées]
+
+### Partie 2 — Exercice d'application (X pts)
+[1 exercice ou problème à résoudre]
+
+### Partie 3 — Réflexion / Rédaction (X pts)
+[question ouverte ou mini-dissertation si pertinent pour la matière]
+
+---
+## ✅ Corrigé indicatif
+[réponses complètes et développées pour chaque question]
+
+Sois précis, juste et adapté au niveau du lycée ivoirien.${!curriculumContext ? '\n(Programme officiel non disponible — base-toi sur tes connaissances générales)' : ''}`;
+
+      result = await callDeepSeek(systemPrompt, `Note de base :\n${noteText}`, apiKey);
+
+    } else if (mode === 'correct') {
       // ── Mode correction — pas besoin de RAG, juste DeepSeek ────────────────
       const systemPrompt = `Tu es un correcteur bienveillant pour un élève ivoirien.
 Corrige le texte suivant en signalant :
@@ -202,10 +254,30 @@ Reste dans le cadre du curriculum ivoirien.${!curriculumContext ? '\n(Programme 
       }
     }
 
-    return NextResponse.json({ result, mode });
+    return NextResponse.json({ result, mode, ...(mode === 'flashcards' ? { flashcards: parseFlashcards(result) } : {}) });
 
   } catch (error) {
     console.error(`[analyze/${mode}] error:`, error);
     return NextResponse.json({ error: 'Analyse échouée' }, { status: 500 });
   }
+}
+
+// ─── Parsing flashcards depuis le texte IA ─────────────────────────────────────
+function parseFlashcards(text: string): { q: string; a: string }[] {
+  const cards: { q: string; a: string }[] = [];
+  // Format attendu : lignes "Q: ... / R: ..."  ou  "**Q:** ... **R:** ..."
+  const lines = text.split('\n').filter(Boolean);
+  let current: { q?: string; a?: string } = {};
+  for (const line of lines) {
+    const qMatch = line.match(/^[*\s-]*[Qq]\s*[:：]\s*(.+)/);
+    const aMatch = line.match(/^[*\s-]*[RrAa]\s*[:：]\s*(.+)/);
+    if (qMatch) {
+      if (current.q && current.a) cards.push({ q: current.q, a: current.a });
+      current = { q: qMatch[1].trim() };
+    } else if (aMatch && current.q) {
+      current.a = aMatch[1].trim();
+    }
+  }
+  if (current.q && current.a) cards.push({ q: current.q, a: current.a });
+  return cards;
 }

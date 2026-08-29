@@ -13,6 +13,8 @@ import { NoteCard } from '@/components/journal/NoteCard';
 import { NoteEditor } from '@/components/journal/NoteEditor';
 import { PinLockModal } from '@/components/journal/PinLock';
 import { MoodDashboard } from '@/components/journal/MoodDashboard';
+import { WeeklyReport } from '@/components/journal/WeeklyReport';
+import { StreakBadge } from '@/components/ui/StreakBadge';
 import { Button } from '@/components/ui/Button';
 import type { Note, Subject, Mood } from '@/types';
 import type { NoteLayout } from '@/store';
@@ -56,7 +58,10 @@ export default function JournalPage() {
         <div className="px-5 md:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-[#1A1A1A]">Mes notes</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-[#1A1A1A]">Mes notes</h1>
+                <StreakBadge />
+              </div>
               <p className="text-xs text-[#9B9590] mt-0.5">
                 {notes.length} note{notes.length > 1 ? 's' : ''} · {subjectsSet.size} matière{subjectsSet.size > 1 ? 's' : ''}
               </p>
@@ -190,6 +195,9 @@ export default function JournalPage() {
 
       {/* Contenu principal */}
       <div className="flex-1 px-5 md:px-8 py-5 overflow-y-auto">
+        {/* Rapport hebdomadaire */}
+        {!hasFilters && <WeeklyReport notes={notes} />}
+
         {/* Dashboard humeur */}
         {!hasFilters && <MoodDashboard notes={notes} />}
 

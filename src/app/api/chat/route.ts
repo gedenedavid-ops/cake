@@ -275,6 +275,13 @@ export async function POST(request: Request) {
             `[${new Date(e.timestamp).toLocaleDateString('fr-FR')}]\nÉlève : ${e.userMessage}\nBinlinPad : ${e.assistantMessage}`
           ).join('\n\n---\n');
           systemContent += `\n--- FIN DES ÉCHANGES PASSÉS ---`;
+
+          // ── Détection de lacune récurrente ───────────────────────────────
+          // Si plusieurs échanges passés traitent du même concept que la question actuelle
+          // c'est que l'élève bute dessus — on l'indique à l'IA
+          if (pastExchanges.length >= 3) {
+            systemContent += `\n\n⚠️ LACUNE RÉCURRENTE DÉTECTÉE : l'apprenant a déjà posé plusieurs questions proches de "${(query ?? '').slice(0, 60)}". Il semble buter sur ce concept. Mentionne-le avec bienveillance et propose une approche différente (analogie, exemple concret, schéma verbal, exercice progressif).`;
+          }
         }
       } catch {
         // RAG historique échoue silencieusement

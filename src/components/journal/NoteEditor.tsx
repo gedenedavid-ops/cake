@@ -6,16 +6,18 @@ import {
   X, Lock, Unlock, Pin,
   AlignLeft, Tag, Smile, Palette, ChevronDown,
   GitCompare, Pencil, BookPlus, Loader2, ChevronUp,
+  Layers, FileText, Mic, MicOff, ScanText,
 } from 'lucide-react';
 import { useStore } from '@/store';
 import { SUBJECT_CONFIG, MOOD_CONFIG, generateId, countWords, estimateReadTime, cn } from '@/lib/utils';
 import { renderMarkdown } from '@/lib/renderMarkdown';
 import { Button } from '@/components/ui/Button';
+import { FlashcardsModal, type Flashcard } from '@/components/journal/FlashcardsModal';
 import type { Subject, Mood, NoteFormData, NoteTag } from '@/types';
 
 // ─── Types IA ─────────────────────────────────────────────────────────────────
 
-type AnalyzeMode = 'compare' | 'correct' | 'complete';
+type AnalyzeMode = 'compare' | 'correct' | 'complete' | 'flashcards' | 'exam';
 type AISuggestion = { mode: AnalyzeMode; result: string } | null;
 
 const SUBJECTS = Object.keys(SUBJECT_CONFIG) as Subject[];
@@ -48,6 +50,16 @@ export function NoteEditor() {
   // ── IA inline ──────────────────────────────────────────────────────────────
   const [aiLoading, setAiLoading] = useState<AnalyzeMode | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion>(null);
+  const [flashcards, setFlashcards] = useState<Flashcard[] | null>(null);
+
+  // ── Dictée vocale ──────────────────────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+
+  // ── OCR ────────────────────────────────────────────────────────────────────
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -83,6 +95,99 @@ export function NoteEditor() {
     setTagInput('');
   }, [tagInput, tags]);
 
+  // ── Dictée vocale ──────────────────────────────────────────────────────────
+  const toggleRecording = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI: any =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+
+    if (!SpeechRecognitionAPI) {
+      addToast({ type: 'warning', message: 'La dictée vocale n\'est pas supportée par ce navigateur.' });
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'fr-FR';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results as any[])
+        .slice(event.resultIndex)
+        .map((r: any) => r[0].transcript)
+        .join(' ');
+      setContent((c) => c + (c.endsWith(' ') || c === '' ? '' : ' ') + transcript);
+    };
+
+    recognition.onerror = () => { setIsRecording(false); };
+    recognition.onend   = () => { setIsRecording(false); };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+  }, [isRecording, addToast]);
+
+  // ── OCR via Gemini Vision ───────────────────────────────────────────────────
+  const handleOcrFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Réinitialise l'input pour permettre de re-sélectionner le même fichier
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      addToast({ type: 'warning', message: 'Sélectionne une image (JPEG, PNG, WEBP).' });
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      addToast({ type: 'warning', message: 'Image trop grande — max 4 Mo.' });
+      return;
+    }
+
+    setIsOcrLoading(true);
+    try {
+      // Lire le fichier en base64
+      const imageBase64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Retirer le préfixe data:image/...;base64,
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, mimeType: file.type }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? 'Erreur OCR');
+
+      // Injecter le texte reconnu à la suite du contenu existant
+      setContent((c) => {
+        const sep = c.trim() ? '\n\n' : '';
+        return c + sep + data.text;
+      });
+      addToast({ type: 'success', message: '📷 Texte reconnu et injecté dans la note ✓' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur OCR';
+      addToast({ type: 'error', message: msg });
+    } finally {
+      setIsOcrLoading(false);
+    }
+  }, [addToast]);
+
   // ── Analyse IA ─────────────────────────────────────────────────────────────
   const handleAnalyze = useCallback(async (mode: AnalyzeMode) => {
     if (!existingNote?.id) {
@@ -103,7 +208,11 @@ export function NoteEditor() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Erreur');
-      setAiSuggestion({ mode, result: data.result });
+      if (mode === 'flashcards' && data.flashcards?.length) {
+        setFlashcards(data.flashcards);
+      } else {
+        setAiSuggestion({ mode, result: data.result });
+      }
     } catch {
       addToast({ type: 'error', message: 'L\'analyse IA a échoué. Réessaie.' });
     } finally {
@@ -139,6 +248,17 @@ export function NoteEditor() {
   };
 
   if (!editorOpen) return null;
+
+  // ── Rendu flashcards modal (hors du panel éditeur) ──────────────────────────
+  if (flashcards) {
+    return (
+      <FlashcardsModal
+        cards={flashcards}
+        noteTitle={existingNote?.title ?? title}
+        onClose={() => setFlashcards(null)}
+      />
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -275,11 +395,34 @@ export function NoteEditor() {
               <Pin size={13} />
             </button>
 
+            {/* Bouton OCR Scanner — toujours visible (fonctionne sur nouvelle note aussi) */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isOcrLoading}
+              className={cn(
+                'p-1.5 rounded-xl transition-colors ml-auto',
+                isOcrLoading
+                  ? 'bg-[#F4A236] text-white'
+                  : 'bg-[#F5F3EF] text-[#9B9590] hover:bg-[#EDE9E3] hover:text-[#1A1A1A]'
+              )}
+              title="Scanner une feuille manuscrite (OCR Gemini)"
+            >
+              {isOcrLoading ? <Loader2 size={13} className="animate-spin" /> : <ScanText size={13} />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="hidden"
+              onChange={handleOcrFile}
+            />
+
             {/* Focus mode */}
             <button
               onClick={() => setFocusMode(!focusMode)}
               className={cn(
-                'p-1.5 rounded-xl transition-colors ml-auto',
+                'p-1.5 rounded-xl transition-colors',
                 focusMode ? 'bg-[#1A1A1A] text-white' : 'bg-[#F5F3EF] text-[#9B9590] hover:bg-[#EDE9E3]'
               )}
               title={focusMode ? 'Quitter le mode focus' : 'Mode focus'}
@@ -297,36 +440,54 @@ export function NoteEditor() {
 
           {/* Barre IA — visible uniquement en mode édition d'une note existante */}
           {existingNote && (
-            <div className="flex items-center gap-1.5 px-4 py-2 bg-[#FDFAF5] border-b border-[#E8E4DF] flex-shrink-0">
-              <span className="text-[10px] font-semibold text-[#9B9590] mr-1">IA</span>
-              {(
-                [
-                  { mode: 'compare'  as AnalyzeMode, icon: GitCompare, label: 'Comparer au programme' },
-                  { mode: 'correct'  as AnalyzeMode, icon: Pencil,     label: 'Corriger l\'écrit'    },
-                  { mode: 'complete' as AnalyzeMode, icon: BookPlus,   label: 'Compléter la note'    },
-                ] as const
-              ).map(({ mode, icon: Icon, label }) => (
-                <button
-                  key={mode}
-                  onClick={() => handleAnalyze(mode)}
-                  disabled={!!aiLoading}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-medium transition-all',
-                    aiLoading === mode
-                      ? 'bg-[#F4A236] text-white'
-                      : 'bg-white border border-[#E8E4DF] text-[#57514C] hover:border-[#F4A236] hover:text-[#F4A236]',
-                    !!aiLoading && aiLoading !== mode && 'opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  {aiLoading === mode
-                    ? <Loader2 size={10} className="animate-spin" />
-                    : <Icon size={10} />
-                  }
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 px-4 py-2 bg-[#FDFAF5] border-b border-[#E8E4DF] flex-shrink-0 flex-wrap">
+            <span className="text-[10px] font-semibold text-[#9B9590] mr-1">IA</span>
+            {(
+              [
+                { mode: 'compare'    as AnalyzeMode, icon: GitCompare, label: 'Comparer'       },
+                { mode: 'correct'    as AnalyzeMode, icon: Pencil,     label: 'Corriger'        },
+                { mode: 'complete'   as AnalyzeMode, icon: BookPlus,   label: 'Compléter'       },
+                { mode: 'flashcards' as AnalyzeMode, icon: Layers,     label: 'Flashcards'      },
+                { mode: 'exam'       as AnalyzeMode, icon: FileText,   label: 'Examen blanc'    },
+              ] as const
+            ).map(({ mode, icon: Icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => handleAnalyze(mode)}
+                disabled={!!aiLoading}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-medium transition-all',
+                  aiLoading === mode
+                    ? 'bg-[#F4A236] text-white'
+                    : 'bg-white border border-[#E8E4DF] text-[#57514C] hover:border-[#F4A236] hover:text-[#F4A236]',
+                  !!aiLoading && aiLoading !== mode && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {aiLoading === mode
+                  ? <Loader2 size={10} className="animate-spin" />
+                  : <Icon size={10} />
+                }
+                {label}
+              </button>
+            ))}
+
+            {/* Bouton dictée vocale */}
+            <button
+              onClick={toggleRecording}
+              className={cn(
+                'flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-medium transition-all',
+                isRecording
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : 'bg-white border border-[#E8E4DF] text-[#57514C] hover:border-[#F4A236] hover:text-[#F4A236]'
+              )}
+              title={isRecording ? 'Arrêter la dictée' : 'Dicter une note'}
+            >
+              {isRecording ? <MicOff size={10} /> : <Mic size={10} />}
+              {isRecording ? 'Arrêter' : 'Dicter'}
+            </button>
+
+          </div>
+        )}
 
           {/* Title */}
           <div className="px-5 pt-4">

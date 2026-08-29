@@ -10,6 +10,7 @@ import { useStore, useActiveSession } from '@/store';
 import { cn, formatRelativeDate } from '@/lib/utils';
 import { renderMarkdown } from '@/lib/renderMarkdown';
 import { ExerciseTimer } from './ExerciseTimer';
+import { StreakBadge } from '@/components/ui/StreakBadge';
 import type { ChatMessage } from '@/types';
 
 const BASE_PROMPTS = [
@@ -137,6 +138,7 @@ function MessageBubble({
 
 export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
   const { sessions, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
+  const [showSummary, setShowSummary] = useState(false);
   const suggestedPrompts = useDynamicPrompts(notes);
   const activeSession = useActiveSession();
   const [input, setInput] = useState('');
@@ -189,18 +191,21 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E4DF] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur</h2>
-              <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
-                <span className={cn(
-                  'px-1.5 py-0.5 rounded-full font-semibold text-[9px]',
-                  userType === 'etudiant'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-orange-100 text-orange-700'
-                )}>
-                  {userType === 'etudiant' ? '🎓 Étudiant' : '🎒 Élève'}
-                </span>
-                {notes.length} note{notes.length > 1 ? 's' : ''}
-              </p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur</h2>
+              <StreakBadge />
+            </div>
+            <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
+              <span className={cn(
+                'px-1.5 py-0.5 rounded-full font-semibold text-[9px]',
+                userType === 'etudiant'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-orange-100 text-orange-700'
+              )}>
+                {userType === 'etudiant' ? '🎓 Étudiant' : '🎒 Élève'}
+              </span>
+              {notes.length} note{notes.length > 1 ? 's' : ''}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -292,6 +297,40 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
                 onTimerExpire={handleTimerExpire}
               />
             ))}
+
+            {/* Carte résumé de session — affichée si un résumé IA existe */}
+            {activeSession.summary && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-2 mt-2 bg-[#FDF0DC]/60 border border-[#F4A236]/30 rounded-2xl overflow-hidden"
+              >
+                <button
+                  onClick={() => setShowSummary(!showSummary)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+                >
+                  <span className="text-[10px] font-semibold text-[#F4A236] uppercase tracking-wider flex items-center gap-1.5">
+                    📋 Résumé de session
+                  </span>
+                  <ChevronDown size={13} className={cn('text-[#F4A236] transition-transform', showSummary && 'rotate-180')} />
+                </button>
+                <AnimatePresence>
+                  {showSummary && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-3 text-xs text-[#57514C] leading-relaxed space-y-0.5">
+                        {renderMarkdown(activeSession.summary)}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
             <div ref={messagesEndRef} />
           </>
         )}

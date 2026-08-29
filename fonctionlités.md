@@ -105,15 +105,40 @@ L'application est accessible via navigateur web (progressive web app). Il n'exis
 - Génération automatique d'un résumé de session après plus de 12 échanges
 - Chaque échange (question + réponse) est vectorisé et indexé immédiatement après la réponse
 
+#### Conscience temporelle
+
+L'IA sait **quand** elle parle à l'apprenant et depuis combien de temps il était absent :
+
+| Situation | Comportement de l'IA |
+|-----------|----------------------|
+| Même journée | Accueil neutre, continuité normale |
+| Absence 1–6 jours | Mentionne le délai, reprend naturellement |
+| Absence 1–4 semaines | Accueil chaleureux + proposition d'un point de révision |
+| Absence 1+ mois | Accueil chaleureux + demande comment il va + proposition de reprendre depuis les notes |
+
+La date/heure courante est toujours injectée dans le système prompt. La date de dernière visite est stockée dans `localStorage` (`binlinpad_last_seen`) côté client et transmise à l'API à chaque message.
+
+#### Minuteur d'exercice
+
+Quand l'IA donne un exercice avec un temps imparti, un chronomètre interactif s'affiche directement dans la bulle de réponse :
+
+- L'IA émet un marqueur interne `%%TIMER:NNN%%` (NNN = secondes) à la fin de sa réponse — ce marqueur est retiré du texte affiché
+- Un arc SVG animé décompte le temps en temps réel : couleur **verte** (>50 %), **orange** (20–50 %), **rouge** (<20 % / expiré)
+- Bouton ↺ pour relancer le chrono
+- À l'expiration, un message automatique est envoyé à l'IA (`[TIMER_EXPIRED]`) qui réagit naturellement : félicite l'élève, demande sa réponse ou sa démarche, et propose la correction
+
 **Ce que DeepSeek reçoit — liste exhaustive :**
 | Donnée | Source | Condition |
 |--------|--------|-----------|
 | System prompt (instructions de comportement) | Code BinlinPad | Toujours |
 | `userType` (élève ou étudiant) | Profil utilisateur | Toujours |
+| Date et heure actuelles | Serveur | Toujours |
+| Délai depuis la dernière visite | `localStorage` client | Si disponible |
 | 20 derniers messages de la session active | Session en cours | Toujours |
 | Notes personnelles pertinentes (titre + matière + contenu) | RAG Qdrant sur la question | Si l'utilisateur a des notes |
 | Échanges passés pertinents (question + réponse, datés) | RAG Qdrant historique | Si score ≥ 0.55 |
 | Extraits du programme officiel (≤ 600 car.) | Qdrant `cours_ivoiriens` | Élèves uniquement |
+| Alerte lacune récurrente | RAG historique (≥ 3 échanges similaires) | Si concept répété |
 
 **Ce que DeepSeek ne reçoit PAS (décision de conception) :**
 - L'humeur de l'utilisateur ou ses notes marquées "confus"
@@ -132,13 +157,17 @@ L'application est accessible via navigateur web (progressive web app). Il n'exis
 ### 3.4 IA dans l'éditeur de notes (`/api/notes/[id]/analyze`)
 
 **Ce que ça fait :**
-Trois actions IA accessibles directement depuis la barre de l'éditeur, sur toute note déjà sauvegardée :
+Cinq actions IA + une dictée vocale accessibles depuis la barre de l'éditeur, sur toute note déjà sauvegardée :
 
 | Action | Bouton | Ce que l'IA produit |
 |--------|--------|---------------------|
-| **Comparer au programme** | `⇄ Comparer au programme` | Compare la note avec le curriculum officiel — ✅ ce qui est correct, ⚠️ ce qui est incomplet, ❌ ce qui manque, 💡 un conseil |
-| **Corriger l'écrit** | `✏️ Corriger l'écrit` | Corrige fautes d'orthographe, grammaire, syntaxe — retourne les corrections expliquées + la version corrigée complète |
-| **Compléter la note** | `📖 Compléter la note` | Génère les paragraphes manquants dans le style de l'élève + un plan structuré — bouton "Ajouter à ma note" pour injection directe |
+| **Comparer** | `⇄ Comparer` | Compare la note avec le curriculum officiel — ✅ correct, ⚠️ incomplet, ❌ manquant, 💡 conseil |
+| **Corriger** | `✏️ Corriger` | Corrige fautes d'orthographe, grammaire, syntaxe — corrections expliquées + version corrigée |
+| **Compléter** | `📖 Compléter` | Génère les paragraphes manquants + plan structuré — bouton "Ajouter à ma note" pour injection directe |
+| **Flashcards** | `🃏 Flashcards` | Génère 5–12 cartes Q/R depuis la note — modal de révision avec flip animé, suivi des cartes maîtrisées, et bouton reset |
+| **Examen blanc** | `📄 Examen blanc` | Crée un devoir complet (3 parties, barème /20) basé sur la note + curriculum — corrigé indicatif inclus |
+| **Dictée vocale** | `🎤 Dicter` | Web Speech API (natif, sans API externe) — transcription en français directement dans le contenu de la note |
+| **Scanner OCR** | `📷` (toolbar) | Photo ou galerie → Gemini Vision (`gemini-2.0-flash`) transcrit le manuscrit et l'injecte dans la note ; fonctionne sur nouvelle note vierge aussi |
 
 **Comportement UI :**
 - La barre IA n'apparaît que sur les notes **déjà sauvegardées** (pas sur une nouvelle note vierge)
@@ -319,7 +348,16 @@ Trois actions IA accessibles directement depuis la barre de l'éditeur, sur tout
 - **Données reçues de Google :** nom, email, avatar
 - **Si l'utilisateur utilise email/mot de passe :** aucune donnée ne transite par Google
 
-### 5.5 Vercel Analytics
+### 5.5 Google Gemini (OCR manuscrit)
+- **URL :** `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
+- **Modèle :** `gemini-2.0-flash`
+- **Ce qui est envoyé :** l'image (JPEG/PNG/WEBP) encodée en base64, accompagnée d'un prompt d'instruction OCR
+- **Ce qui n'est jamais envoyé :** le contenu textuel des notes, l'identité de l'utilisateur, l'historique de session
+- **Déclenchement :** uniquement sur action explicite de l'utilisateur (clic sur `📷 Scanner`)
+- **Quota gratuit :** 1 500 requêtes/jour sur le tier gratuit Google AI Studio
+- **Clé requise :** `GEMINI_API_KEY` (variable d'environnement serveur uniquement)
+
+### 5.6 Vercel Analytics
 - **Usage :** mesure du trafic (pages vues, pays)
 - **Anonymisation :** pas d'identifiant persistant ni de cookie de tracking
 - **Données :** métriques agrégées de navigation
@@ -360,7 +398,27 @@ Trois actions IA accessibles directement depuis la barre de l'éditeur, sur tout
 
 ---
 
-## 8. Ce qui reste à implémenter avant mise en production complète
+## 8. Historique des fonctionnalités récentes
+
+### v0.3.0 — Tuteur enrichi & éditeur augmenté (juin 2025)
+
+- [x] **Streak de travail 🔥** — compteur de jours consécutifs d'activité (notes + chat) affiché dans les headers Journal et Tuteur ; stocké dans `localStorage` (`binlinpad_streak`) ; meilleur streak conservé ; couleur orange si ≥ 7 jours
+- [x] **Rapport hebdomadaire** — carte automatique en haut du journal : notes créées, mots écrits, jours actifs, top matière, comparaison semaine précédente ; calculé côté client sans requête réseau
+- [x] **Résumé de session affiché** — carte pliable `📋 Résumé de session` en bas du fil de discussion, affichée dès qu'un résumé IA est généré (après >12 échanges) ; le résumé est maintenant stocké dans le state Zustand
+- [x] **Flashcards depuis une note** — bouton `🃏 Flashcards` dans la barre IA de l'éditeur → modal avec flip animé, suivi des cartes maîtrisées (bouton "Su !"), barre de progression, écran de félicitations, reset
+- [x] **Examen blanc** — bouton `📄 Examen blanc` → devoir 3 parties (/20 pts) avec durée recommandée + corrigé indicatif ; enrichi par le curriculum officiel via RAG
+- [x] **Dictée vocale** — bouton `🎤 Dicter` dans la barre de l'éditeur → transcription Web Speech API (natif, aucune clé API) en français, insertion en temps réel dans le contenu de la note ; fonctionne sur Chrome/Edge/Safari
+- [x] **Détection de lacune récurrente** — si ≥ 3 échanges passés portent sur le même concept, le system prompt signale à l'IA une lacune probable et l'invite à proposer une approche pédagogique différente
+- [x] **Scanner OCR manuscrit** — bouton `📷` dans la toolbar de l'éditeur → l'élève prend une photo de sa feuille (ou importe depuis sa galerie) → Gemini Vision `gemini-2.0-flash` transcrit le texte et l'injecte dans la note ; fonctionne même sur une nouvelle note vierge ; gratuit jusqu'à 1500 req/jour
+
+### v0.2.0 — Tuteur IA : conscience temporelle & minuteur (juin 2025)
+
+- [x] **Conscience temporelle** — l'IA connaît la date/heure courante et le délai depuis la dernière visite de l'élève ; son accueil s'adapte automatiquement (neutre / chaleureux / point de révision)
+- [x] **Minuteur d'exercice** — quand l'IA donne un exercice chronométré, un arc SVG animé décompte le temps dans la bulle de réponse (vert → orange → rouge) ; à l'expiration un message automatique est envoyé et l'IA réagit naturellement
+
+---
+
+## 9. Ce qui reste à implémenter avant mise en production complète
 
 - [ ] Créer la collection Qdrant `binlinpad_notes` (dim 1024, Cosine) — action manuelle
 - [ ] Route de suppression de compte (supprime User + Notes + ChatSessions + SpeakRequests + vecteurs Qdrant)

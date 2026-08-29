@@ -104,6 +104,7 @@ export type ChatSession = {
   id: string;
   title: string;
   messages: ChatMessage[];
+  summary?: string;   // résumé IA généré après une longue session
   createdAt: Date;
   updatedAt: Date;
 };

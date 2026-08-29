@@ -9,6 +9,7 @@ import {
   setToStorage,
   reviveNote,
 } from '@/lib/utils';
+import { recordActivity } from '@/lib/streak';
 
 // ─── Notes Slice ──────────────────────────────────────────────────────────────
 
@@ -201,6 +202,7 @@ export const useStore = create<AppStore>((set, get) => ({
     };
     set((s) => ({ notes: [note, ...s.notes] }));
     upsertNoteEmbedding(note);
+    recordActivity();
     return note;
   },
 
@@ -219,6 +221,7 @@ export const useStore = create<AppStore>((set, get) => ({
     };
     set((s) => ({ notes: s.notes.map((n) => n.id === id ? updated : n) }));
     upsertNoteEmbedding(updated);
+    recordActivity();
   },
 
   deleteNote: async (id) => {
@@ -429,6 +432,7 @@ export const useStore = create<AppStore>((set, get) => ({
       // Récupérer la date de dernière visite AVANT de la mettre à jour
       const lastSeenAt = getFromStorage<string | null>(LAST_SEEN_KEY, null);
       setToStorage(LAST_SEEN_KEY, new Date().toISOString());
+      recordActivity();
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -473,7 +477,13 @@ export const useStore = create<AppStore>((set, get) => ({
       set((s) => ({
         sessions: s.sessions.map((sess) =>
           sess.id === sessionId
-            ? { ...sess, messages: newMessages, title: newTitle, updatedAt: new Date() }
+            ? {
+                ...sess,
+                messages: newMessages,
+                title: newTitle,
+                updatedAt: new Date(),
+                ...(data.sessionSummary ? { summary: data.sessionSummary } : {}),
+              }
             : sess
         ),
         isAILoading: false,
