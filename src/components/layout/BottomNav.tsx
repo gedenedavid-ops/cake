@@ -18,7 +18,7 @@ export function BottomNav() {
   const activeRoute = NAV_ITEMS.find((item) => pathname.startsWith(item.href))?.route ?? 'journal';
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#E8E4DF] safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#1C1B19] border-t border-[#E8E4DF] dark:border-[#2E2C28] safe-area-bottom">
       <div className="flex items-center justify-around px-2 py-2">
         {NAV_ITEMS.map(({ route, label, icon: Icon, href }) => {
           const isActive = activeRoute === route;

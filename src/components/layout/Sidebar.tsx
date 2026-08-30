@@ -42,10 +42,10 @@ export function Sidebar() {
       initial={false}
       animate={{ width: sidebarCollapsed ? 72 : 220 }}
       transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-      className="hidden md:flex flex-col h-screen bg-white border-r border-[#E8E4DF] overflow-hidden flex-shrink-0 z-30"
+      className="hidden md:flex flex-col h-screen bg-white dark:bg-[#1C1B19] border-r border-[#E8E4DF] dark:border-[#2E2C28] overflow-hidden flex-shrink-0 z-30"
     >
       {/* Logo */}
-      <div className="flex items-center h-14 px-3 border-b border-[#E8E4DF] flex-shrink-0 gap-2">
+      <div className="flex items-center h-14 px-3 border-b border-[#E8E4DF] dark:border-[#2E2C28] flex-shrink-0 gap-2">
         <div className="w-7 h-7 rounded-lg bg-[#F4A236] flex items-center justify-center flex-shrink-0">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="1" width="5" height="5" rx="1.5" fill="white" />
@@ -61,7 +61,7 @@ export function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.15 }}
-              className="font-semibold text-[#1A1A1A] text-base whitespace-nowrap tracking-tight"
+              className="font-semibold text-[#1A1A1A] dark:text-[#F0EDE8] text-base whitespace-nowrap tracking-tight"
             >
               BinlinPad
             </motion.span>
@@ -69,7 +69,7 @@ export function Sidebar() {
         </AnimatePresence>
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="ml-auto p-1.5 rounded-lg text-[#C8C4BE] hover:text-[#1A1A1A] hover:bg-[#F5F3EF] transition-colors flex-shrink-0"
+          className="ml-auto p-1.5 rounded-lg text-[#C8C4BE] dark:text-[#4A4845] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE8] hover:bg-[#F5F3EF] dark:hover:bg-[#242320] transition-colors flex-shrink-0"
           aria-label="Toggle sidebar"
         >
           {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
@@ -77,7 +77,7 @@ export function Sidebar() {
       </div>
 
       {/* New Note Button */}
-      <div className="px-3 py-3 border-b border-[#E8E4DF]">
+      <div className="px-3 py-3 border-b border-[#E8E4DF] dark:border-[#2E2C28]">
         <button
           onClick={() => openEditor()}
           className={cn(
@@ -103,8 +103,8 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 w-full rounded-xl px-3 py-2.5 transition-all text-sm font-medium',
                 isActive
-                  ? 'bg-[#F5F3EF] text-[#1A1A1A]'
-                  : 'text-[#9B9590] hover:bg-[#F5F3EF] hover:text-[#1A1A1A]',
+                  ? 'bg-[#F5F3EF] dark:bg-[#242320] text-[#1A1A1A] dark:text-[#F0EDE8]'
+                  : 'text-[#9B9590] hover:bg-[#F5F3EF] dark:hover:bg-[#242320] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE8]',
                 sidebarCollapsed && 'justify-center px-2'
               )}
               aria-label={label}
@@ -127,7 +127,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer — user + logout */}
-      <div className="px-3 py-3 border-t border-[#E8E4DF] space-y-1">
+      <div className="px-3 py-3 border-t border-[#E8E4DF] dark:border-[#2E2C28] space-y-1">
         {/* User info */}
         <div className={cn(
           'flex items-center gap-2.5 px-2 py-1.5',
@@ -148,7 +148,7 @@ export function Sidebar() {
           )}
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-[#1A1A1A] truncate">{displayName}</p>
+              <p className="text-xs font-medium text-[#1A1A1A] dark:text-[#F0EDE8] truncate">{displayName}</p>
               {displayEmail && (
                 <p className="text-[10px] text-[#9B9590] truncate">{displayEmail}</p>
               )}
@@ -160,7 +160,7 @@ export function Sidebar() {
         <button
           onClick={() => signOut({ callbackUrl: '/auth/connexion' })}
           className={cn(
-            'flex items-center gap-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-[#9B9590] hover:bg-red-50 hover:text-red-500 transition-all',
+            'flex items-center gap-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-[#9B9590] hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 transition-all',
             sidebarCollapsed && 'justify-center px-2'
           )}
           title="Se déconnecter"

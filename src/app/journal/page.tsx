@@ -8,6 +8,7 @@ import {
   LayoutGrid, List, Columns2,
 } from 'lucide-react';
 import { useStore, useFilteredNotes } from '@/store';
+import { NoteCardSkeleton } from '@/components/ui/Skeleton';
 import { SUBJECT_CONFIG, MOOD_CONFIG, cn } from '@/lib/utils';
 import { NoteCard } from '@/components/journal/NoteCard';
 import { NoteEditor } from '@/components/journal/NoteEditor';
@@ -30,7 +31,7 @@ const LAYOUT_ICONS: Record<NoteLayout, React.ElementType> = {
 
 export default function JournalPage() {
   const {
-    notes, searchQuery, filterSubject, filterMood,
+    notes, notesLoaded, searchQuery, filterSubject, filterMood,
     setSearchQuery, setFilterSubject, setFilterMood,
     openEditor, loadNotes, prefs, updatePrefs,
   } = useStore();
@@ -54,12 +55,12 @@ export default function JournalPage() {
   return (
     <div className="flex flex-col h-full">
       {/* En-tête */}
-      <div className="sticky top-0 z-10 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E8E4DF]">
+      <div className="sticky top-0 z-10 bg-[#FAF8F5]/90 dark:bg-[#111110]/90 backdrop-blur-md border-b border-[#E8E4DF] dark:border-[#2E2C28]">
         <div className="px-5 md:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-[#1A1A1A]">Mes notes</h1>
+                <h1 className="text-2xl font-bold text-[#1A1A1A] dark:text-[#F0EDE8]">Mes notes</h1>
                 <StreakBadge />
               </div>
               <p className="text-xs text-[#9B9590] mt-0.5">
@@ -81,7 +82,7 @@ export default function JournalPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher notes, matières, tags…"
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#E8E4DF] rounded-xl text-sm text-[#1A1A1A] placeholder-[#C8C4BE] focus:border-[#F4A236] focus:ring-2 focus:ring-[#F4A236]/20 transition-all"
+                className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#242320] border border-[#E8E4DF] dark:border-[#2E2C28] rounded-xl text-sm text-[#1A1A1A] dark:text-[#F0EDE8] placeholder-[#C8C4BE] focus:border-[#F4A236] focus:ring-2 focus:ring-[#F4A236]/20 transition-all"
               />
               {searchQuery && (
                 <button
@@ -228,8 +229,16 @@ export default function JournalPage() {
           </div>
         )}
 
-        {/* Grille de notes */}
-        {filteredNotes.length === 0 ? (
+        {/* Grille de notes — skeleton pendant le chargement initial */}
+        {!notesLoaded ? (
+          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
+            {[false, true, false, true, true, false, true, false].map((tall, i) => (
+              <div key={i} className="break-inside-avoid">
+                <NoteCardSkeleton tall={tall} />
+              </div>
+            ))}
+          </div>
+        ) : filteredNotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-3xl bg-[#F5F3EF] flex items-center justify-center mb-4">
               <BookOpen size={24} className="text-[#C8C4BE]" />

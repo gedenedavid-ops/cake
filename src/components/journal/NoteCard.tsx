@@ -171,7 +171,7 @@ export function NoteCard({ note, onOpen, index = 0, listMode = false }: NoteCard
               </button>
               {menuOpen && (
                 <div
-                  className="absolute right-0 top-8 z-20 bg-white border border-[#E8E4DF] rounded-xl shadow-lg py-1 min-w-[140px]"
+                  className="absolute right-0 top-8 z-20 bg-white dark:bg-[#242320] border border-[#E8E4DF] dark:border-[#2E2C28] rounded-xl shadow-lg py-1 min-w-[140px]"
                   onMouseLeave={() => setMenuOpen(false)}
                 >
                   {[
@@ -185,8 +185,8 @@ export function NoteCard({ note, onOpen, index = 0, listMode = false }: NoteCard
                       className={cn(
                         'w-full text-left px-3 py-1.5 text-sm transition-colors',
                         item.danger
-                          ? 'text-red-500 hover:bg-red-50'
-                          : 'text-[#1A1A1A] hover:bg-[#F5F3EF]'
+                          ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40'
+                          : 'text-[#1A1A1A] dark:text-[#F0EDE8] hover:bg-[#F5F3EF] dark:hover:bg-[#2E2C28]'
                       )}
                     >
                       {item.label}

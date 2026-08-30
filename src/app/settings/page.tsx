@@ -6,12 +6,12 @@ import {
   Shield, Palette, Database,
   Download, Trash2, Check, User,
   Lock, LayoutGrid, List, Columns2,
-  Info, Delete, LogOut, Phone, MessageCircle, Globe,
+  Info, Delete, LogOut, Phone, MessageCircle, Globe, Sun, Moon,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Shell } from '@/components/layout/Shell';
 import { useStore } from '@/store';
-import type { NoteLayout, AccentColor } from '@/store';
+import type { NoteLayout } from '@/store';
 import type { UserType } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -27,13 +27,13 @@ function SectionCard({ title, icon: Icon, children }: {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-[#E8E4DF] overflow-hidden"
+      className="bg-white dark:bg-[#1C1B19] rounded-2xl border border-[#E8E4DF] dark:border-[#2E2C28] overflow-hidden"
     >
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E8E4DF]">
-        <div className="w-8 h-8 rounded-xl bg-[#F5F3EF] flex items-center justify-center">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E8E4DF] dark:border-[#2E2C28]">
+        <div className="w-8 h-8 rounded-xl bg-[#F5F3EF] dark:bg-[#242320] flex items-center justify-center">
           <Icon size={15} className="text-[#9B9590]" />
         </div>
-        <h3 className="text-sm font-semibold text-[#1A1A1A]">{title}</h3>
+        <h3 className="text-sm font-semibold text-[#1A1A1A] dark:text-[#F0EDE8]">{title}</h3>
       </div>
       <div className="p-5 space-y-5">{children}</div>
     </motion.div>
@@ -228,13 +228,6 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'data',       label: 'Données',      icon: Database },
 ];
 
-const ACCENT_COLORS: { value: AccentColor; label: string }[] = [
-  { value: '#F4A236', label: 'Ocre'   },
-  { value: '#3B82F6', label: 'Bleu'   },
-  { value: '#10B981', label: 'Vert'   },
-  { value: '#8B5CF6', label: 'Violet' },
-  { value: '#EC4899', label: 'Rose'   },
-];
 
 const LAYOUTS: { value: NoteLayout; label: string; icon: React.ElementType }[] = [
   { value: 'masonry', label: 'Mosaïque', icon: Columns2   },
@@ -455,23 +448,31 @@ export default function SettingsPage() {
           {/* ── Appearance ── */}
           {section === 'appearance' && (
             <motion.div key="appearance" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-4">
-              <SectionCard title="Couleur d'accentuation" icon={Palette}>
-                <div className="flex gap-3 flex-wrap">
-                  {ACCENT_COLORS.map(({ value, label }) => (
+
+              {/* Thème clair / sombre */}
+              <SectionCard title="Thème" icon={Palette}>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'light', label: 'Clair',  Icon: Sun  },
+                    { value: 'dark',  label: 'Sombre', Icon: Moon },
+                  ] as { value: 'light' | 'dark'; label: string; Icon: React.ElementType }[]).map(({ value, label, Icon }) => (
                     <button
                       key={value}
-                      onClick={() => updatePrefs({ accentColor: value })}
-                      title={label}
+                      onClick={() => updatePrefs({ theme: value })}
                       className={cn(
-                        'w-9 h-9 rounded-xl border-2 transition-all hover:scale-110 active:scale-95',
-                        prefs.accentColor === value ? 'border-[#1A1A1A] scale-110' : 'border-transparent'
+                        'flex items-center gap-2 flex-1 px-4 py-3 rounded-xl border text-sm font-medium transition-all',
+                        prefs.theme === value
+                          ? 'bg-[#1A1A1A] dark:bg-white text-white dark:text-[#1A1A1A] border-[#1A1A1A] dark:border-white'
+                          : 'bg-white dark:bg-[#242320] text-[#9B9590] border-[#E8E4DF] dark:border-[#2E2C28] hover:border-[#1A1A1A] dark:hover:border-white hover:text-[#1A1A1A] dark:hover:text-white'
                       )}
-                      style={{ backgroundColor: value }}
-                    />
+                    >
+                      <Icon size={15} />
+                      {label}
+                    </button>
                   ))}
                 </div>
                 <p className="text-[11px] text-[#9B9590]">
-                  Sélectionné : <span className="font-medium text-[#1A1A1A]">{ACCENT_COLORS.find((c) => c.value === prefs.accentColor)?.label}</span>
+                  {prefs.theme === 'dark' ? 'Mode sombre activé.' : 'Mode clair activé.'}
                 </p>
               </SectionCard>
 

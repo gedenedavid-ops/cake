@@ -7,6 +7,7 @@ import {
   Plus, MessageSquare, Loader2, User, RotateCcw,
 } from 'lucide-react';
 import { useStore, useActiveSession } from '@/store';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { cn, formatRelativeDate } from '@/lib/utils';
 import { renderMarkdown } from '@/lib/renderMarkdown';
 import { ExerciseTimer } from './ExerciseTimer';
@@ -137,7 +138,7 @@ function MessageBubble({
 }
 
 export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
-  const { sessions, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
+  const { sessions, sessionsLoaded, createSession, sendMessage, setActiveSession, deleteSession, isAILoading, notes, userType } = useStore();
   const [showSummary, setShowSummary] = useState(false);
   const suggestedPrompts = useDynamicPrompts(notes);
   const activeSession = useActiveSession();
@@ -188,11 +189,11 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E4DF] flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E4DF] dark:border-[#2E2C28] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-[#1A1A1A]">Tuteur</h2>
+              <h2 className="text-base font-semibold text-[#1A1A1A] dark:text-[#F0EDE8]">Tuteur</h2>
               <StreakBadge />
             </div>
             <p className="text-[10px] text-[#9B9590] flex items-center gap-1.5">
@@ -212,7 +213,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
           {sessions.length > 0 && (
             <button
               onClick={() => setShowSessions(!showSessions)}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#9B9590] hover:text-[#1A1A1A] hover:bg-[#F5F3EF] rounded-xl transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#9B9590] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE8] hover:bg-[#F5F3EF] dark:hover:bg-[#242320] rounded-xl transition-colors"
             >
               <MessageSquare size={13} />
               Historique
@@ -221,7 +222,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
           )}
           <button
             onClick={() => { createSession(); setShowSessions(false); }}
-            className="p-1.5 rounded-xl bg-[#F5F3EF] text-[#9B9590] hover:text-[#1A1A1A] hover:bg-[#EDE9E3] transition-colors"
+            className="p-1.5 rounded-xl bg-[#F5F3EF] dark:bg-[#242320] text-[#9B9590] hover:text-[#1A1A1A] dark:hover:text-[#F0EDE8] hover:bg-[#EDE9E3] dark:hover:bg-[#2E2C28] transition-colors"
             title="Nouvelle conversation"
           >
             <Plus size={15} />
@@ -236,7 +237,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-b border-[#E8E4DF] overflow-hidden"
+            className="border-b border-[#E8E4DF] dark:border-[#2E2C28] overflow-hidden"
           >
             <div className="p-3 space-y-1 max-h-40 overflow-y-auto">
               {sessions.map((sess) => (
@@ -246,7 +247,7 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
                     className={cn(
                       'flex-1 text-left px-3 py-2 rounded-xl text-xs transition-colors',
                       activeSession?.id === sess.id
-                        ? 'bg-[#FDF0DC] text-[#F4A236]'
+                        ? 'bg-[#FDF0DC] dark:bg-[#F4A236]/10 text-[#F4A236]'
                         : 'hover:bg-[#F5F3EF] text-[#1A1A1A]'
                     )}
                   >
@@ -269,7 +270,33 @@ export function ChatPanel({ initialPrompt }: { initialPrompt?: string }) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
-        {!activeSession || activeSession.messages.length === 0 ? (
+        {!sessionsLoaded ? (
+          // Skeleton pendant le chargement des sessions
+          <div className="flex flex-col gap-5 pt-2">
+            <div className="flex gap-3">
+              <Skeleton className="w-7 h-7 rounded-full flex-shrink-0 mt-1" />
+              <div className="space-y-2 flex-1 max-w-md">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-3/5" />
+              </div>
+            </div>
+            <div className="flex gap-3 flex-row-reverse">
+              <Skeleton className="w-7 h-7 rounded-full flex-shrink-0 mt-1" />
+              <div className="space-y-2 max-w-xs">
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Skeleton className="w-7 h-7 rounded-full flex-shrink-0 mt-1" />
+              <div className="space-y-2 flex-1 max-w-lg">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </div>
+        ) : !activeSession || activeSession.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
             <h3 className="text-[#1A1A1A] font-semibold mb-1">Bonjour 👋</h3>
             <p className="text-[#9B9590] text-sm max-w-xs mb-6">

@@ -15,6 +15,7 @@ import { recordActivity } from '@/lib/streak';
 
 type NotesSlice = {
   notes: Note[];
+  notesLoaded: boolean;
   activeNoteId: string | null;
   searchQuery: string;
   filterSubject: Subject | null;
@@ -66,6 +67,7 @@ export type UserPreferences = {
   displayName: string;
   noteLayout: NoteLayout;
   accentColor: AccentColor;
+  theme: 'light' | 'dark';
   pinHash: string;          // SHA-256 hex of PIN, never the raw PIN
   aiEnabled: boolean;       // user can opt-out of AI features
   language: 'en' | 'fr';
@@ -77,6 +79,7 @@ const DEFAULT_PREFS: UserPreferences = {
   displayName: '',
   noteLayout: 'masonry',
   accentColor: '#F4A236',
+  theme: 'light',
   pinHash: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', // SHA-256("1234")
   aiEnabled: true,
   language: 'fr',
@@ -162,6 +165,7 @@ async function searchSimilarNotes(query: string): Promise<SearchResult[]> {
 export const useStore = create<AppStore>((set, get) => ({
   // ── Notes ──────────────────────────────────────────────────────────────────
   notes: [],
+  notesLoaded: false,
   activeNoteId: null,
   searchQuery: '',
   filterSubject: null,
@@ -171,7 +175,7 @@ export const useStore = create<AppStore>((set, get) => ({
   loadNotes: async () => {
     try {
       const res = await fetch('/api/notes');
-      if (!res.ok) return;
+      if (!res.ok) { set({ notesLoaded: true }); return; }
       const data = await res.json();
       const notes: Note[] = (data.notes ?? []).map((n: Record<string, unknown>) => ({
         ...(n as Note),
@@ -179,11 +183,11 @@ export const useStore = create<AppStore>((set, get) => ({
         createdAt: new Date(n.createdAt as string),
         updatedAt: new Date(n.updatedAt as string),
       }));
-      set({ notes });
+      set({ notes, notesLoaded: true });
     } catch {
       // Fallback localStorage si hors ligne
       const raw = getFromStorage<Record<string, unknown>[]>(NOTES_KEY, []);
-      set({ notes: raw.map(reviveNote) });
+      set({ notes: raw.map(reviveNote), notesLoaded: true });
     }
   },
 
