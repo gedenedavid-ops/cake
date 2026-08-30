@@ -6,7 +6,7 @@ import {
   Shield, Palette, Database,
   Download, Trash2, Check, User,
   Lock, LayoutGrid, List, Columns2,
-  Info, Delete, LogOut, Phone, MessageCircle,
+  Info, Delete, LogOut, Phone, MessageCircle, Globe,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Shell } from '@/components/layout/Shell';
@@ -144,7 +144,6 @@ function PinChangePanel() {
       className="space-y-3"
     >
       <p className="text-xs font-medium text-[#1A1A1A]">{stepLabel[step]}</p>
-      {/* Dots */}
       <div className="flex gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className={cn(
@@ -153,7 +152,6 @@ function PinChangePanel() {
           )} />
         ))}
       </div>
-      {/* Numpad */}
       <div className="grid grid-cols-3 gap-2 max-w-[200px]">
         {['1','2','3','4','5','6','7','8','9'].map((d) => (
           <button key={d} onClick={() => handleDigit(d)}
@@ -176,39 +174,7 @@ function PinChangePanel() {
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
-type Section = 'profile' | 'appearance' | 'privacy' | 'data';
-
-const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
-  { key: 'profile',    label: 'Profil',      icon: User     },
-  { key: 'appearance', label: 'Apparence',   icon: Palette  },
-  { key: 'privacy',    label: 'Confidential.', icon: Shield },
-  { key: 'data',       label: 'Données',     icon: Database },
-];
-
-const ACCENT_COLORS: { value: AccentColor; label: string }[] = [
-  { value: '#F4A236', label: 'Ocre'    },
-  { value: '#3B82F6', label: 'Bleu'    },
-  { value: '#10B981', label: 'Vert'    },
-  { value: '#8B5CF6', label: 'Violet'  },
-  { value: '#EC4899', label: 'Rose'    },
-];
-
-const LAYOUTS: { value: NoteLayout; label: string; icon: React.ElementType }[] = [
-  { value: 'masonry', label: 'Mosaïque', icon: Columns2   },
-  { value: 'grid',    label: 'Grille',   icon: LayoutGrid },
-  { value: 'list',    label: 'Liste',    icon: List       },
-];
-
-const USER_TYPES: { value: UserType; label: string; desc: string }[] = [
-  { value: 'eleve',    label: '🎒 Élève',    desc: 'Collège / Lycée · Programme ivoirien · RAG curriculaire' },
-  { value: 'etudiant', label: '🎓 Étudiant', desc: 'Université / Supérieur · Accès libre à tous les sujets' },
-];
-
 // ─── Bouton volontaire "Je veux en parler" ────────────────────────────────────
-// L'élève déclenche lui-même la demande — l'app ne détecte rien, ne diagnostique rien.
-// C'est une transmission de demande, pas un diagnostic.
 
 function SpeakToAdvisorButton() {
   const [sent, setSent] = useState(false);
@@ -216,8 +182,6 @@ function SpeakToAdvisorButton() {
 
   const handleSend = async () => {
     setSending(true);
-    // Simple POST vers une route dédiée qui envoie un email/notification au conseiller
-    // (sans données personnelles — juste "un élève souhaite être contacté")
     try {
       await fetch('/api/wellbeing/speak-request', {
         method: 'POST',
@@ -226,8 +190,7 @@ function SpeakToAdvisorButton() {
       });
       setSent(true);
     } catch {
-      // Fail silently — l'élève peut toujours appeler le numéro
-      setSent(true);
+      setSent(true); // fail silently — l'élève peut appeler le numéro
     } finally {
       setSending(false);
     }
@@ -249,10 +212,45 @@ function SpeakToAdvisorButton() {
       className="w-full flex items-center gap-2 px-3 py-2.5 bg-white border border-[#E8E4DF] rounded-xl text-xs font-medium text-[#1A1A1A] hover:border-[#F4A236] active:scale-[0.98] transition-all disabled:opacity-60"
     >
       <MessageCircle size={12} className="text-[#9B9590]" />
-      {sending ? 'Envoi…' : 'Je veux en parler à quelqu\'un'}
+      {sending ? 'Envoi…' : "Je veux en parler à quelqu'un"}
     </button>
   );
 }
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+type Section = 'profile' | 'appearance' | 'privacy' | 'data';
+
+const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
+  { key: 'profile',    label: 'Profil',       icon: User     },
+  { key: 'appearance', label: 'Apparence',    icon: Palette  },
+  { key: 'privacy',    label: 'Confidential.', icon: Shield  },
+  { key: 'data',       label: 'Données',      icon: Database },
+];
+
+const ACCENT_COLORS: { value: AccentColor; label: string }[] = [
+  { value: '#F4A236', label: 'Ocre'   },
+  { value: '#3B82F6', label: 'Bleu'   },
+  { value: '#10B981', label: 'Vert'   },
+  { value: '#8B5CF6', label: 'Violet' },
+  { value: '#EC4899', label: 'Rose'   },
+];
+
+const LAYOUTS: { value: NoteLayout; label: string; icon: React.ElementType }[] = [
+  { value: 'masonry', label: 'Mosaïque', icon: Columns2   },
+  { value: 'grid',    label: 'Grille',   icon: LayoutGrid },
+  { value: 'list',    label: 'Liste',    icon: List       },
+];
+
+const USER_TYPES: { value: UserType; label: string; desc: string }[] = [
+  { value: 'eleve',    label: '🎒 Élève',    desc: 'Collège / Lycée · Programme ivoirien · RAG curriculaire' },
+  { value: 'etudiant', label: '🎓 Étudiant', desc: 'Université / Supérieur · Accès libre à tous les sujets' },
+];
+
+const LANGUAGES: { value: 'fr' | 'en'; label: string; flag: string }[] = [
+  { value: 'fr', label: 'Français', flag: '🇫🇷' },
+  { value: 'en', label: 'English',  flag: '🇬🇧' },
+];
 
 export default function SettingsPage() {
   const { notes, addToast, prefs, updatePrefs, userType, setUserType } = useStore();
@@ -260,6 +258,7 @@ export default function SettingsPage() {
   const [section, setSection] = useState<Section>('profile');
   const [displayNameDraft, setDisplayNameDraft] = useState(prefs.displayName);
   const [nameSaved, setNameSaved] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const saveName = () => {
     updatePrefs({ displayName: displayNameDraft.trim() });
@@ -278,17 +277,26 @@ export default function SettingsPage() {
     addToast({ type: 'success', message: `${notes.length} note${notes.length > 1 ? 's' : ''} exportée${notes.length > 1 ? 's' : ''}` });
   };
 
-  const handleClearAll = () => {
-    if (!confirm('Supprimer toutes les notes ? Cette action est irréversible.')) return;
-    useStore.setState({ notes: [] });
-    localStorage.removeItem('binlinpad_notes');
-    addToast({ type: 'info', message: 'Toutes les notes supprimées' });
+  const handleDeleteAccount = async () => {
+    if (!confirm(
+      'Supprimer définitivement ton compte ?\n\nToutes tes notes, conversations et données seront supprimées. Cette action est irréversible.'
+    )) return;
+
+    setDeletingAccount(true);
+    try {
+      const res = await fetch('/api/user/account', { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      await signOut({ callbackUrl: '/auth/connexion' });
+    } catch {
+      addToast({ type: 'error', message: 'Erreur lors de la suppression. Réessaie.' });
+      setDeletingAccount(false);
+    }
   };
 
   const totalWords = notes.reduce((acc, n) => acc + n.wordCount, 0);
-  const subjects = new Set(notes.map((n) => n.subject)).size;
-  const locked   = notes.filter((n) => n.isLocked).length;
-  const pinned   = notes.filter((n) => n.isPinned).length;
+  const subjects   = new Set(notes.map((n) => n.subject)).size;
+  const locked     = notes.filter((n) => n.isLocked).length;
+  const pinned     = notes.filter((n) => n.isPinned).length;
 
   return (
     <Shell>
@@ -324,7 +332,7 @@ export default function SettingsPage() {
           {section === 'profile' && (
             <motion.div key="profile" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-4">
               <SectionCard title="Mon profil" icon={User}>
-                {/* Avatar */}
+                {/* Avatar + nom */}
                 <div className="flex items-center gap-4">
                   {session?.user?.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -356,6 +364,8 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Compte connecté + déconnexion */}
                 {session?.user?.email && (
                   <div className="flex items-center gap-3 p-3 bg-[#F5F3EF] rounded-xl">
                     <div className="flex-1 min-w-0">
@@ -373,8 +383,8 @@ export default function SettingsPage() {
                 )}
               </SectionCard>
 
+              {/* Profil tuteur IA */}
               <SectionCard title="Tuteur IA" icon={User}>
-                {/* Type d'utilisateur */}
                 <div>
                   <p className="text-sm font-medium text-[#1A1A1A] mb-2">Mon profil</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -401,8 +411,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-medium text-[#1A1A1A]">Activer les fonctions IA</p>
                     <p className="text-xs text-[#9B9590] mt-0.5">
-                      Quand activé, le contenu de tes notes est envoyé à l'IA pour répondre à tes questions.
-                      Désactive pour une utilisation 100 % hors ligne.
+                      Désactive pour une utilisation 100 % hors ligne. Aucune donnée n&apos;est envoyée à l&apos;IA.
                     </p>
                   </div>
                   <Toggle
@@ -410,32 +419,33 @@ export default function SettingsPage() {
                     onChange={(v) => updatePrefs({ aiEnabled: v })}
                   />
                 </div>
+
                 <div className="flex gap-2 p-3 bg-[#F5F3EF] rounded-xl">
                   <Info size={13} className="text-[#9B9590] flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-[#9B9590] leading-relaxed">
                     {userType === 'eleve'
-                      ? 'En mode Élève, l\'IA s\'appuie sur tes notes ET sur le programme scolaire ivoirien officiel.'
-                      : 'En mode Étudiant, l\'IA répond librement sur tous les sujets à partir de tes notes.'
+                      ? "En mode Élève, l'IA s'appuie sur tes notes ET sur le programme scolaire ivoirien officiel."
+                      : "En mode Étudiant, l'IA répond librement sur tous les sujets à partir de tes notes."
                     }
                   </p>
                 </div>
               </SectionCard>
 
-              {/* Ressource d'écoute — toujours visible, jamais déclenché par l'app */}
+              {/* Ressource d'écoute */}
               <div className="rounded-2xl border border-[#E8E4DF] bg-[#F5F3EF] p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Phone size={14} className="text-[#9B9590]" />
-                  <p className="text-xs font-semibold text-[#1A1A1A]">Besoin de parler à quelqu'un ?</p>
+                  <p className="text-xs font-semibold text-[#1A1A1A]">Besoin de parler à quelqu&apos;un ?</p>
                 </div>
                 <p className="text-[11px] text-[#9B9590] leading-relaxed">
-                  Si tu traverses une période difficile, des personnes formées sont disponibles pour t'écouter — en toute confidentialité.
+                  Si tu traverses une période difficile, des personnes formées sont disponibles pour t&apos;écouter — en toute confidentialité.
                 </p>
                 <a
                   href="tel:+22527222263"
                   className="flex items-center gap-2 px-3 py-2.5 bg-white border border-[#E8E4DF] rounded-xl text-xs font-medium text-[#1A1A1A] hover:border-[#F4A236] transition-all"
                 >
                   <Phone size={12} className="text-[#9B9590]" />
-                  SOS Amitié Côte d'Ivoire · 27 22 22 63
+                  SOS Amitié Côte d&apos;Ivoire · 27 22 22 63
                 </a>
                 <SpeakToAdvisorButton />
               </div>
@@ -484,6 +494,29 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </SectionCard>
+
+              <SectionCard title="Langue de l'interface" icon={Globe}>
+                <div className="flex gap-2">
+                  {LANGUAGES.map(({ value, label, flag }) => (
+                    <button
+                      key={value}
+                      onClick={() => updatePrefs({ language: value })}
+                      className={cn(
+                        'flex items-center gap-2 flex-1 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all',
+                        prefs.language === value
+                          ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
+                          : 'bg-white text-[#9B9590] border-[#E8E4DF] hover:border-[#1A1A1A] hover:text-[#1A1A1A]'
+                      )}
+                    >
+                      <span>{flag}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-[#9B9590]">
+                  La langue de l&apos;interface. Le tuteur IA répond toujours en français quelle que soit cette option.
+                </p>
+              </SectionCard>
             </motion.div>
           )}
 
@@ -492,60 +525,44 @@ export default function SettingsPage() {
             <motion.div key="privacy" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-4">
               <SectionCard title="Verrouillage PIN" icon={Lock}>
                 <p className="text-xs text-[#9B9590]">
-                  Définis un code PIN à 4 chiffres pour protéger tes notes sensibles. Ton PIN est haché localement et jamais stocké en clair.
+                  Code PIN à 4 chiffres pour protéger tes notes sensibles. Haché localement (SHA-256), jamais stocké en clair ni transmis.
                 </p>
                 <PinChangePanel />
               </SectionCard>
 
-              <SectionCard title="Données & Confidentialité" icon={Shield}>
-                <div className="space-y-4">
+              <SectionCard title="Ce que l'IA reçoit" icon={Shield}>
+                <div className="space-y-3">
                   {[
                     {
-                      label: 'Stockage local uniquement',
-                      description: 'Toutes tes notes restent sur cet appareil. Rien n\'est envoyé à un serveur externe.',
-                      enabled: true,
-                      locked: true,
+                      label: "Extraits de notes pertinents uniquement",
+                      description: "L'IA reçoit les 5 extraits les plus proches de ta question — jamais l'intégralité de ton carnet.",
+                      ok: true,
                     },
                     {
-                      label: 'L\'IA n\'utilise que des extraits',
-                      description: 'L\'IA reçoit uniquement les extraits de notes les plus pertinents — jamais l\'intégralité de ton carnet.',
-                      enabled: prefs.aiEnabled,
-                      locked: true,
+                      label: "Ton humeur n'est jamais envoyée",
+                      description: "Le journal d'humeur reste sur cet appareil. Aucun modèle d'IA n'y a accès.",
+                      ok: true,
                     },
-                  ].map(({ label, description, enabled, locked: isLocked }) => (
-                    <div key={label} className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#1A1A1A]">{label}</p>
-                        <p className="text-xs text-[#9B9590] mt-0.5 leading-relaxed">{description}</p>
+                    {
+                      label: "Tes notes verrouillées sont exclues",
+                      description: "Les notes protégées par PIN sont ignorées par le RAG, même si leur contenu est pertinent.",
+                      ok: true,
+                    },
+                    {
+                      label: "Clés API côté serveur uniquement",
+                      description: "DeepSeek, Voyage AI et Qdrant ne sont jamais accessibles depuis ton navigateur.",
+                      ok: true,
+                    },
+                  ].map(({ label, description, ok }) => (
+                    <div key={label} className="flex items-start gap-3">
+                      <span className="mt-0.5 flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-green-50 text-green-600">✓</span>
+                      <div className={ok ? '' : 'opacity-50'}>
+                        <p className="text-xs font-medium text-[#1A1A1A]">{label}</p>
+                        <p className="text-[11px] text-[#9B9590] mt-0.5 leading-relaxed">{description}</p>
                       </div>
-                      {isLocked ? (
-                        <span className={cn(
-                          'flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium mt-1',
-                          enabled ? 'bg-green-50 text-green-600' : 'bg-[#F5F3EF] text-[#9B9590]'
-                        )}>
-                          {enabled ? '✓ Actif' : 'Inactif'}
-                        </span>
-                      ) : (
-                        <Toggle enabled={enabled} onChange={() => {}} />
-                      )}
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-
-              <SectionCard title="Mentions légales" icon={Shield}>
-                <p className="text-xs text-[#9B9590] leading-relaxed">
-                  Consulte nos Conditions Générales d&apos;Utilisation et notre Politique de Confidentialité
-                  pour comprendre comment tes données sont utilisées et protégées.
-                </p>
-                <a
-                  href="/legal"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-[#F4A236] hover:underline font-medium mt-1"
-                >
-                  Lire les mentions légales →
-                </a>
               </SectionCard>
             </motion.div>
           )}
@@ -558,12 +575,11 @@ export default function SettingsPage() {
               <SectionCard title="Mes notes" icon={Database}>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: 'Notes totales',  value: notes.length },
-                    { label: 'Mots écrits',    value: totalWords > 999 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords },
-                    { label: 'Matières',       value: subjects },
-                    { label: 'Notes verrouill.', value: locked },
-                    { label: 'Notes épinglées', value: pinned },
-                    { label: 'Stockage',       value: 'Sur l\'appareil' },
+                    { label: 'Notes totales',     value: notes.length },
+                    { label: 'Mots écrits',        value: totalWords > 999 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords },
+                    { label: 'Matières',           value: subjects },
+                    { label: 'Notes épinglées',    value: pinned },
+                    { label: 'Notes verrouillées', value: locked },
                   ].map(({ label, value }) => (
                     <div key={label} className="bg-[#F5F3EF] rounded-xl p-3">
                       <p className="text-lg font-bold text-[#1A1A1A]">{value}</p>
@@ -579,7 +595,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-medium text-[#1A1A1A]">Exporter toutes les notes</p>
                     <p className="text-xs text-[#9B9590] mt-0.5">
-                      Télécharge un fichier JSON de toutes tes notes comme sauvegarde.
+                      Télécharge un fichier JSON de toutes tes notes comme sauvegarde personnelle.
                     </p>
                   </div>
                   <Button variant="secondary" size="sm" onClick={handleExport}>
@@ -588,16 +604,23 @@ export default function SettingsPage() {
                 </div>
               </SectionCard>
 
+              {/* Zone de danger */}
               <SectionCard title="Zone de danger" icon={Trash2}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-red-500">Supprimer toutes les notes</p>
+                    <p className="text-sm font-medium text-red-500">Supprimer mon compte</p>
                     <p className="text-xs text-[#9B9590] mt-0.5">
-                      Supprime définitivement toutes les notes de cet appareil. Irréversible.
+                      Supprime définitivement ton compte, toutes tes notes, conversations et vecteurs Qdrant. Irréversible.
                     </p>
                   </div>
-                  <Button variant="danger" size="sm" onClick={handleClearAll}>
-                    <Trash2 size={13} /> Tout supprimer
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount}
+                  >
+                    <Trash2 size={13} />
+                    {deletingAccount ? 'Suppression…' : 'Supprimer'}
                   </Button>
                 </div>
               </SectionCard>
