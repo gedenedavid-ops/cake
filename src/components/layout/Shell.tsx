@@ -11,7 +11,8 @@ interface ShellProps {
 }
 
 export function Shell({ children }: ShellProps) {
-  const { accentColor, theme } = useStore((s) => s.prefs);
+  const theme       = useStore((s) => s.prefs.theme);
+  const accentColor = useStore((s) => s.prefs.accentColor);
 
   // Injecte la couleur d'accent + applique la classe dark sur <html>
   useEffect(() => {
